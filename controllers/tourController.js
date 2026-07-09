@@ -51,11 +51,11 @@ exports.updateDemandStatus = async (req, res) => {
             demandId
         ]);
 
-        // 2. Eğer yeni durum "IN_PROGRESS" (Talep Üzerinde Çalışılıyor) ise mail tetikle
+        // 2. Eğer yeni durum "IN_PROGRESS" (Talep Üzerinde Çalışılıyor) ise mail ve whatsapp tetikle
         if (status === 'IN_PROGRESS') {
-            // Talebi getiren acentenin e-posta bilgisini ve talep adını çek
+            // Talebi getiren acentenin e-posta, telefon ve talep adını çek
             const [demandRows] = await db.execute(`
-                SELECT td.demand_name, a.agency_name, a.email 
+                SELECT td.demand_name, a.agency_name, a.email, a.phone 
                 FROM tour_demands td
                 LEFT JOIN agencies a ON td.agency_id = a.id
                 WHERE td.id = ?
@@ -63,56 +63,94 @@ exports.updateDemandStatus = async (req, res) => {
 
             const demandInfo = demandRows[0];
 
-            // Acentenin e-postası sistemde tanımlıysa mail gönderimini başlat
-            if (demandInfo && demandInfo.email && demandInfo.email.trim() !== "" && demandInfo.email !== '-') {
-                
-                // Mail sunucusu (SMTP) yapılandırması (.env dosyasından okur)
-                const transporter = nodemailer.createTransport({
-                    host: process.env.EMAIL_HOST,
-                    port: parseInt(process.env.EMAIL_PORT) || 587,
-                    secure: false, // 587 portu için false, 465 için true olmalı
-                    auth: {
-                        user: process.env.EMAIL_USER,
-                        pass: process.env.EMAIL_PASS
-                    },
-                    tls: {
-                        rejectUnauthorized: false // Şirket sertifikalarında hata oluşmasını engeller
-                    }
-                });
+            if (demandInfo) {
+                // --- A) E-POSTA BİLGİLENDİRME ---
+                if (demandInfo.email && demandInfo.email.trim() !== "" && demandInfo.email !== '-') {
+                    
+                    const transporter = nodemailer.createTransport({
+                        host: process.env.EMAIL_HOST,
+                        port: parseInt(process.env.EMAIL_PORT) || 587,
+                        secure: false,
+                        auth: {
+                            user: process.env.EMAIL_USER,
+                            pass: process.env.EMAIL_PASS
+                        },
+                        tls: {
+                            rejectUnauthorized: false
+                        }
+                    });
 
-                // Kurumsal e-posta içeriği (HTML formatında)
-                const mailOptions = {
-                    from: `"Operasyon Takip Sistemi" <${process.env.EMAIL_USER}>`,
-                    to: demandInfo.email,
-                    subject: `Talep Bilgilendirmesi: ${demandInfo.demand_name}`,
-                    html: `
-                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 10px;">
-                            <h2 style="color: #0369a1; border-bottom: 2px solid #0369a1; padding-bottom: 10px;">Sayın ${demandInfo.agency_name} Yetkilisi,</h2>
-                            <p style="font-size: 16px; line-height: 1.6;">
-                                 İletmiş olduğunuz <strong>"${demandInfo.demand_name}"</strong> isimli tur / organizasyon talebiniz operasyon ekibimiz tarafından incelenmeye alınmış olup, 
-                                <span style="color: #0369a1; font-weight: bold;">üzerinde çalışılmaya başlanmıştır.</span>
-                            </p>
-                            <p style="font-size: 15px; line-height: 1.6; background-color: #f0f9ff; padding: 12px; border-left: 4px solid #0369a1; border-radius: 4px;">
-                                En kısa sürede detaylı program ve fiyat teklifimiz tarafınıza ulaştırılacaktır.
-                            </p>
-                            <p style="font-size: 14px; margin-top: 30px; color: #777; border-top: 1px solid #eeeeee; padding-top: 10px;">
-                                İyi çalışmalar dileriz,<br>
-                                <strong>İnci DMC Turizm</strong>
-                            </p>
-                        </div>
-                    `
-                };
+                    const mailOptions = {
+                        from: `"İnci DMC Turizm" <${process.env.EMAIL_USER}>`,
+                        to: demandInfo.email,
+                        subject: `Talep Bilgilendirmesi: ${demandInfo.demand_name} (Ref: ${Date.now().toString().slice(-4)})`,
+                        html: `
+                            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #2c3e50; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
+                                <p style="font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 0;">Sayın ${demandInfo.agency_name} Yetkilisi,</p>
+                                <p style="font-size: 15px; line-height: 1.6; color: #475569;">
+                                    Sistemimize iletmiş olduğunuz <strong>"${demandInfo.demand_name}"</strong> isimli tur / organizasyon talebiniz operasyon ekibimiz tarafından incelenmeye alınmış olup, süreç başlatılmıştır.
+                                </p>
+                                <div style="margin: 20px 0; padding: 15px; background-color: #f8fafc; border-left: 3px solid #10b981; border-radius: 0 6px 6px 0;">
+                                    <p style="font-size: 14px; line-height: 1.5; color: #334155; margin: 0; font-weight: 500;">
+                                        📌 En kısa sürede detaylı program planlaması ve fiyat teklifimiz hazırlanarak tarafınıza ulaştırılacaktır.
+                                    </p>
+                                </div>
+                                <div style="margin-top: 35px; padding-top: 15px; border-top: 1px solid #edf2f7; font-size: 14px; color: #64748b; line-height: 1.5;">
+                                    İyi çalışmalar dileriz,<br>
+                                    <strong style="color: #0f172a;">İnci DMC Operasyon Ekibi</strong><br>
+                                    <span style="font-size: 12px; color: #94a3b8;">Operasyon Yönetim Sistemi Otomatik Bilgilendirmesi</span>
+                                </div>
+                            </div>
+                        `
+                    };
 
-                // E-postayı arka planda gönder (Kullanıcıyı bekletmemek için asenkron olarak yürüt)
-                transporter.sendMail(mailOptions, (err, info) => {
-                    if (err) {
-                        console.error("Acenteye bilgilendirme maili gönderilirken hata oluştu:", err);
-                    } else {
-                        console.log(`✉️ Acenteye bilgilendirme maili başarıyla gönderildi: ${demandInfo.email}`);
+                    transporter.sendMail(mailOptions, (err, info) => {
+                        if (err) {
+                            console.error("Acenteye bilgilendirme maili gönderilirken hata oluştu:", err);
+                        } else {
+                            console.log(`✉️ Acenteye bilgilendirme maili başarıyla gönderildi: ${demandInfo.email}`);
+                        }
+                    });
+                }
+
+                // --- B) WHATSAPP BİLGİLENDİRME ---
+                if (demandInfo.phone && demandInfo.phone.trim() !== "" && demandInfo.phone !== '-') {
+                    try {
+                        // Telefon numarasındaki sayı dışındaki tüm karakterleri temizle
+                        let cleanPhone = demandInfo.phone.replace(/\D/g, '');
+                        
+                        // Numara ülke koduyla (90) başlamıyorsa ve 10 haneliyse başına ekle
+                        if (!cleanPhone.startsWith('90') && cleanPhone.length === 10) {
+                            cleanPhone = '90' + cleanPhone;
+                        }
+
+                        // WhatsApp ID formatı
+                        const whatsappId = `${cleanPhone}@c.us`;
+
+                        // Kalın (*...) yazı formatlı kurumsal mesaj şablonu
+                        const whatsappMessage = 
+                        `*İNCİ DMC TURİZM*
+                                            
+                        Sayın *${demandInfo.agency_name}* Yetkilisi,
+                                            
+                        Sistemimize iletmiş olduğunuz *"${demandInfo.demand_name}"* isimli tur / organizasyon talebiniz operasyon ekibimiz tarafından incelemeye alınmış olup, süreç başlatılmıştır.
+                                            
+                        ⏳ En kısa sürede detaylı program planlaması ve fiyat teklifimiz hazırlanarak tarafınıza ulaştırılacaktır.
+                                            
+                        İyi çalışmalar dileriz.
+                        *İnci DMC Operasyon Ekibi*`;
+
+                        // global.whatsappClient'ın hazır ve bağlı olup olmadığını kontrol edip gönder
+                        if (global.whatsappClient && global.whatsappClient.info) {
+                            await global.whatsappClient.sendMessage(whatsappId, whatsappMessage);
+                            console.log(`📱 WhatsApp bilgilendirme mesajı başarıyla gönderildi: ${cleanPhone}`);
+                        } else {
+                            console.log('⚠️ WhatsApp istemcisi henüz hazır veya bağlı olmadığından mesaj gönderilemedi.');
+                        }
+                    } catch (wsErr) {
+                        console.error('WhatsApp mesajı gönderilirken teknik hata oluştu:', wsErr);
                     }
-                });
-            } else {
-                console.log(`⚠️ Talep No ${demandId} için geçerli bir acente e-postası bulunamadığından mail gönderilmedi.`);
+                }
             }
         }
 
