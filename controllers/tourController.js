@@ -1,6 +1,6 @@
-// controllers/tourController.js -> %100 SENİN İLK ATTIĞIN ORİJİNAL KOD
 const db = require('../db');
 const ExcelJS = require('exceljs');
+const nodemailer = require('nodemailer');
 
 // =========================================================================
 // 1. MODÜL: Talep Takip Sayfası (CRM)
@@ -44,9 +44,79 @@ exports.updateDemandStatus = async (req, res) => {
         const demandId = req.params.id;
         const { status, rejection_reason } = req.body;
 
+        // 1. Veritabanında durum güncellemesini yap
         await db.execute('UPDATE tour_demands SET status = ?, rejection_reason = ? WHERE id = ?', [
-            status, status === 'REJECTED' ? rejection_reason : null, demandId
+            status, 
+            status === 'REJECTED' ? rejection_reason : null, 
+            demandId
         ]);
+
+        // 2. Eğer yeni durum "IN_PROGRESS" (Talep Üzerinde Çalışılıyor) ise mail tetikle
+        if (status === 'IN_PROGRESS') {
+            // Talebi getiren acentenin e-posta bilgisini ve talep adını çek
+            const [demandRows] = await db.execute(`
+                SELECT td.demand_name, a.agency_name, a.email 
+                FROM tour_demands td
+                LEFT JOIN agencies a ON td.agency_id = a.id
+                WHERE td.id = ?
+            `, [demandId]);
+
+            const demandInfo = demandRows[0];
+
+            // Acentenin e-postası sistemde tanımlıysa mail gönderimini başlat
+            if (demandInfo && demandInfo.email && demandInfo.email.trim() !== "" && demandInfo.email !== '-') {
+                
+                // Mail sunucusu (SMTP) yapılandırması (.env dosyasından okur)
+                const transporter = nodemailer.createTransport({
+                    host: process.env.EMAIL_HOST,
+                    port: parseInt(process.env.EMAIL_PORT) || 587,
+                    secure: false, // 587 portu için false, 465 için true olmalı
+                    auth: {
+                        user: process.env.EMAIL_USER,
+                        pass: process.env.EMAIL_PASS
+                    },
+                    tls: {
+                        rejectUnauthorized: false // Şirket sertifikalarında hata oluşmasını engeller
+                    }
+                });
+
+                // Kurumsal e-posta içeriği (HTML formatında)
+                const mailOptions = {
+                    from: `"Operasyon Takip Sistemi" <${process.env.EMAIL_USER}>`,
+                    to: demandInfo.email,
+                    subject: `Talep Bilgilendirmesi: ${demandInfo.demand_name}`,
+                    html: `
+                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                            <h2 style="color: #0369a1; border-bottom: 2px solid #0369a1; padding-bottom: 10px;">Sayın ${demandInfo.agency_name} Yetkilisi,</h2>
+                            <p style="font-size: 16px; line-height: 1.6;">
+                                 İletmiş olduğunuz <strong>"${demandInfo.demand_name}"</strong> isimli tur / organizasyon talebiniz operasyon ekibimiz tarafından incelenmeye alınmış olup, 
+                                <span style="color: #0369a1; font-weight: bold;">üzerinde çalışılmaya başlanmıştır.</span>
+                            </p>
+                            <p style="font-size: 15px; line-height: 1.6; background-color: #f0f9ff; padding: 12px; border-left: 4px solid #0369a1; border-radius: 4px;">
+                                En kısa sürede detaylı program ve fiyat teklifimiz tarafınıza ulaştırılacaktır.
+                            </p>
+                            <p style="font-size: 14px; margin-top: 30px; color: #777; border-top: 1px solid #eeeeee; padding-top: 10px;">
+                                İyi çalışmalar dileriz,<br>
+                                <strong>İnci DMC Turizm</strong>
+                            </p>
+                        </div>
+                    `
+                };
+
+                // E-postayı arka planda gönder (Kullanıcıyı bekletmemek için asenkron olarak yürüt)
+                transporter.sendMail(mailOptions, (err, info) => {
+                    if (err) {
+                        console.error("Acenteye bilgilendirme maili gönderilirken hata oluştu:", err);
+                    } else {
+                        console.log(`✉️ Acenteye bilgilendirme maili başarıyla gönderildi: ${demandInfo.email}`);
+                    }
+                });
+            } else {
+                console.log(`⚠️ Talep No ${demandId} için geçerli bir acente e-postası bulunamadığından mail gönderilmedi.`);
+            }
+        }
+
+        // İşlem tamamlanınca sayfayı yenile
         res.redirect('/tour-demands');
     } catch (error) {
         res.status(500).send('Talep güncellenirken hata oluştu: ' + error.message);
