@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talep Takip Tablosu (CRM)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background: linear-gradient(135deg, #0f172a, #1e293b); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .status-PENDING { background-color: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
+        .status-APPROVED { background-color: #d1fae5; color: #065f46; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
+        .status-REJECTED { background-color: #fee2e2; color: #991b1b; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
+        .status-IN_PROGRESS { background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
+        .table-responsive { background: white; border-radius: 15px; padding: 15px; overflow-x: auto; }
+        .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark p-3 text-white shadow">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold fs-3 text-success"><i class="fa-solid fa-map-location-dot me-2"></i> Tour ERP</span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav ms-4 gap-2">
+                <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>">
+                    <i class="fa-solid fa-list-check me-1"></i> Aktif Turlar
+                </a>
+                <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>">
+                    <i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)
+                </a>
+                <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>">
+                    <i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar
+                </a>
+            </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid my-4 px-4">
+        <div class="row">
+            
+            <div class="col-xl-3 col-lg-4 mb-4">
+                <div class="card p-4 shadow-sm bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold text-dark m-0"><i class="fa-solid fa-square-plus text-primary me-2"></i> Yeni Talep</h4>
+                        <button type="button" class="btn btn-sm btn-outline-success fw-bold" data-bs-toggle="modal" data-bs-target="#quickAgencyModal">
+                            <i class="fa-solid fa-plus"></i>  Acente Ekle
+                        </button>
+                    </div>
+
+                    <form action="/add-demand" method="POST" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Talep Edilen Tur / Organizasyon</label>
+                            <input type="text" name="demand_name" class="form-control py-2" placeholder="Örn: Balkan Turu" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Talebi Getiren Acente</label>
+                            <select name="agency_id" class="form-select py-2">
+                                <option value="">-- Acente Seçin --</option>
+                                <% agencies.forEach(a => { %>
+                                    <option value="<%= a.id %>"><%= a.agency_name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">İlk Görüşme Tarihi</label>
+                            <input type="date" name="first_contact_date" class="form-control py-2">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Teklif Verilme Tarihi</label>
+                            <input type="date" name="offer_date" class="form-control py-2">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Fiyat ve Döviz Birimi</label>
+                            <div class="input-group">
+                                <select name="currency" class="form-select fw-bold bg-light" style="max-width: 90px;">
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="TRY">TRY (₺)</option>
+                                </select>
+                                <input type="number" step="0.01" name="offered_price" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
+                                <i class="fa-solid fa-floppy-disk me-1"></i> Talebi Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-xl-9 col-lg-8 mb-4">
+                <div class="card p-4 shadow-sm bg-white h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="fw-bold text-dark m-0"><i class="fa-solid fa-table-list text-success me-2"></i> Talep Takip Tablosu</h4>
+                        
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="/export-demands-excel" class="btn btn-sm btn-success fw-bold px-3 py-2 shadow-sm">
+                                <i class="fa-solid fa-file-excel me-1"></i> Excel'e Aktar
+                            </a>
+                            <span class="badge bg-dark px-3 py-2 fw-semibold fs-6">Toplam: <%= demands.length %> Talep</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tur / Talep Adı</th>
+                                    <th>Acente</th>
+                                    <th>İlk Görüşme</th>
+                                    <th>Teklif Tarihi</th>
+                                    <th>Verilen Fiyat</th>
+                                    <th>Mevcut Durum</th>
+                                    <th class="text-center" style="width: 200px;">Durumu Güncelle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(demands.length === 0) { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted fw-semibold">Henüz sisteme işlenmiş bir acente talebi bulunmuyor.</td>
+                                    </tr>
+                                <% } %>
+                                <% demands.forEach(d => { %>
+                                    <tr class="fw-semibold">
+                                        <td class="text-primary fs-5"><%= d.demand_name %></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="text-dark">
+                                                    <i class="fa-solid fa-building text-secondary me-1"></i> 
+                                                    <%= d.agency_name || 'Bilinmiyor' %>
+                                                </span>
+
+                                                <% if (d.phone || d.email) { %>
+                                                    <span class="text-info" 
+                                                          data-bs-toggle="tooltip" 
+                                                          data-bs-html="true" 
+                                                          data-bs-title="📞 Tel: <%= d.phone || '-' %> <br> ✉️ E-posta: <%= d.email || '-' %>" 
+                                                          style="cursor: pointer;">
+                                                        <i class="fa-solid fa-circle-info small"></i>
+                                                    </span>
+                                                <% } %>
+                                            </div>
+                                        </td>                                       
+                                        <td><small class="text-muted"><%= d.first_contact_date ? d.first_contact_date.toISOString().split('T')[0] : '-' %></small></td>
+                                        <td><small class="text-muted"><%= d.offer_date ? d.offer_date.toISOString().split('T')[0] : '-' %></small></td>
+                                        <td class="text-dark">
+                                            <% if(d.currency === 'USD') { %> $ <% } else if(d.currency === 'TRY') { %> ₺ <% } else { %> € <% } %><%= Number(d.offered_price || 0).toLocaleString() %>
+                                        </td>
+                                        <td>
+                                            <span class="status-<%= d.status %>">
+                                                <% if(d.status === 'PENDING') { %> Beklemede <% } %>
+                                                <% if(d.status === 'APPROVED') { %> Onaylandı (Tura Dönüştü) <% } %>
+                                                <% if(d.status === 'REJECTED') { %> Reddedildi <% } %>
+                                                <% if(d.status === 'IN_PROGRESS') { %> Talep Üzerinde Çalışılıyor <% } %>
+                                            </span>
+                                            <% if(d.status === 'REJECTED' && d.rejection_reason) { %>
+                                                <small class="d-block text-danger mt-1 small fw-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> Gerekçe: <%= d.rejection_reason %></small>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <form action="/update-demand-status/<%= d.id %>" method="POST" id="statusForm-<%= d.id %>" class="d-flex gap-1 align-items-center">
+                                                <select name="status" class="form-select form-select-sm fw-bold py-1" onchange="handleStatusChange(this, '<%= d.id %>', '<%= d.demand_name %>')">
+                                                    <option value="PENDING" <%= d.status === 'PENDING' ? 'selected' : '' %>>Beklemede</option>
+                                                    <option value="IN_PROGRESS" <%= d.status === 'IN_PROGRESS' ? 'selected' : '' %>>Talep Üzerinde Çalışılıyor</option>
+                                                    <option value="APPROVED" <%= d.status === 'APPROVED' ? 'selected' : '' %>>Onayla 👍</option>
+                                                    <option value="REJECTED" <%= d.status === 'REJECTED' ? 'selected' : '' %>>Reddet 👎</option>
+                                                </select>
+                                                <button type="submit" id="btn-submit-<%= d.id %>" class="btn btn-sm btn-dark fw-bold">Uygula</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="rejectionModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 15px;">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-ban me-2"></i> Talep Reddetme Gerekçesi</h5>
+                </div>
+                <form id="rejectionForm" method="POST">
+                    <input type="hidden" name="status" value="REJECTED">
+                    <div class="modal-body p-4">
+                        <p class="fw-semibold text-muted"><span id="reject-tour-name" class="text-danger fw-bold"></span> talebinin reddedilme nedenini giriniz:</p>
+                        <input type="text" name="rejection_reason" class="form-control py-2" placeholder="Örn: Fiyat yüksek bulundu / Tarih uymadı" required>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary fw-bold" onclick="window.location.reload();">Vazgeç</button>
+                        <button type="submit" class="btn btn-danger fw-bold px-4">Kaydet ve Uygula</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="quickAgencyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 15px;">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-building me-2"></i> Yeni Acente Ekle</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/add-agency" method="POST">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Acente Adı</label>
+                            <input type="text" name="agency_name" class="form-control" placeholder="Örn: Tatil Sepeti" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Acente Telefon Numarası</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="Örn: +90 532 XXX XX XX">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Acente E-posta Adresi</label>
+                            <input type="email" name="email" class="form-control" placeholder="Örn: info@acente.com">
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Kapat</button>
+                        <button type="submit" class="btn btn-success fw-bold">Veritabanına Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl, {
+                    sanitize: false
+                })
+            });
+        });
+
+        function handleStatusChange(selectElement, id, tourName) {
+            if (selectElement.value === 'REJECTED') {
+                document.getElementById('reject-tour-name').textContent = tourName;
+                document.getElementById('rejectionForm').action = '/update-demand-status/' + id;
+                var myModal = new bootstrap.Modal(document.getElementById('rejectionModal'));
+                myModal.show();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<div class="modal fade" id="quickHotelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">🏢 Yeni Otel Hızlı Ekle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <form id="formQuickHotel">
+                <div class="modal-body p-4">
+                    <input type="hidden" id="quickHotelCityId" name="city_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Otel Adı</label>
+                        <input type="text" id="quickHotelName" class="form-control fw-semibold" placeholder="Örn: Hilton Hotel" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

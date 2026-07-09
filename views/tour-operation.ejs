@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tur Operasyon Yönetimi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background: linear-gradient(135deg, #1e293b, #0f172a); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .status-badge { padding: 4px 10px; border-radius: 30px; font-weight: 600; font-size: 0.75rem; display: block; text-align: center; }
+        .status-DONE { background-color: #d1fae5; color: #065f46; }
+        .status-PENDING { background-color: #fef3c7; color: #92400e; }
+        .status-MISSING { background-color: #fee2e2; color: #991b1b; }
+        .select2-container--bootstrap-5 .select2-selection--multiple { border-radius: 8px !important; min-height: 40px; border: 1px solid #dee2e6; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark p-3 text-white shadow">
+        <div class="container-fluid">
+            <a href="/" class="btn btn-outline-light fw-bold"><i class="fa-solid fa-arrow-left me-1"></i> Kokpite Geri Dön</a>
+            <span class="navbar-brand fw-bold fs-4 mx-auto"><i class="fa-solid fa-sliders me-2 text-success"></i> İç Operasyon Yönetim Merkezi</span>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="card p-4 mb-4 shadow-sm bg-white">
+            <h3 class="fw-bold text-dark mb-1"><%= tour.tour_name %></h3>
+            <p class="text-muted fw-semibold mb-4">
+                <i class="fa-solid fa-calendar-days me-1"></i> Tarih: 
+                <%= tour.start_date ? (tour.start_date instanceof Date ? tour.start_date.toISOString().split('T')[0] : tour.start_date.toString().split('T')[0]) : 'Belirtilmedi' %> / 
+                <%= tour.end_date ? (tour.end_date instanceof Date ? tour.end_date.toISOString().split('T')[0] : tour.end_date.toString().split('T')[0]) : 'Belirtilmedi' %> 
+                | <i class="fa-solid fa-building ms-2 me-1"></i> Acente: <%= tour.agency_name || 'Yok' %>
+                | <i class="fa-solid fa-user-tie ms-2 me-1"></i> Ana Rehber: <%= tour.guide_name || 'Atanmadı' %>
+            </p>
+            <hr>
+            <form action="/update-tour-status/<%= tour.id %>" method="POST" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">Ulaşım / Otobüs Durumu</label>
+                    <select name="transport_status" class="form-select fw-semibold">
+                        <option value="PENDING" <%= tour.transport_status === 'PENDING' ? 'selected' : '' %>>Tamamlanmadı</option>
+                        <option value="DONE" <%= tour.transport_status === 'DONE' ? 'selected' : '' %>>Tamamlandı</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">Gelen Ödeme (Acente)</label>
+                    <select name="payment_received" class="form-select fw-semibold">
+                        <option value="PENDING" <%= tour.payment_received === 'PENDING' ? 'selected' : '' %>>Tamamlanmadı</option>
+                        <option value="DONE" <%= tour.payment_received === 'DONE' ? 'selected' : '' %>>Alındı</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">Giden Ödemeler (Tedarikçi)</label>
+                    <select name="payment_paid" class="form-select fw-semibold">
+                        <option value="PENDING" <%= tour.payment_paid === 'PENDING' ? 'selected' : '' %>>Tamamlanmadı</option>
+                        <option value="DONE" <%= tour.payment_paid === 'DONE' ? 'selected' : '' %>>Ödendi</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-dark w-100 fw-bold py-2"><i class="fa-solid fa-floppy-disk me-1"></i> Durumları Kaydet</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card p-4 shadow-sm bg-white h-100">
+                    <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-map-pinned me-2 text-success"></i> Bu Tura Bağlı Şehir Operasyonları</h5>
+                    <% if (managedCities.length === 0) { %>
+                        <div class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-folder-open fs-1 d-block mb-3 text-secondary"></i>
+                            <span class="fw-semibold">Bu tura henüz bir şehir adımı eklenmedi.</span>
+                        </div>
+                    <% } else { %>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Şehir</th>
+                                        <th>Otel Bilgisi</th>
+                                        <th>Restoran Bilgisi</th>
+                                        <th>Ana Rehber (Leader)</th>
+                                        <th>Yerel Rehber</th>
+                                        <th class="text-center">İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% managedCities.forEach(city => { %>
+                                        <tr>
+                                            <td class="fw-bold text-muted fs-6"><%= city.city_name %></td>
+                                            <td>
+                                                <div class="d-flex flex-column align-items-start">
+                                                    <span class="fw-bold text-secondary mb-1 small text-wrap" style="max-width: 180px;"><%= city.hotel_names || 'Seçilmedi' %></span>
+                                                    <span class="status-badge status-<%= city.hotel_names ? city.hotel_status : 'MISSING' %>"><%= city.hotel_names ? (city.hotel_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Seçilmedi' %></span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-column align-items-start">
+                                                    <span class="fw-bold text-secondary mb-1 small text-wrap" style="max-width: 180px;"><%= city.restaurant_names || 'Seçilmedi' %></span>
+                                                    <span class="status-badge status-<%= city.restaurant_names ? city.restaurant_status : 'MISSING' %>"><%= city.restaurant_names ? (city.restaurant_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Seçilmedi' %></span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-column align-items-start">
+                                                    <span class="fw-bold text-muted mb-1 small"><%= city.general_guide_name || 'Atanmadı' %></span>
+                                                    <span class="status-badge status-<%= city.general_guide_name ? city.general_guide_status : 'PENDING' %>">
+                                                        <%= city.general_guide_name ? (city.general_guide_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Atanmadı' %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-column align-items-start">
+                                                    <span class="fw-bold text-muted mb-1 small"><%= city.local_guide_name || 'Atanmadı' %></span>
+                                                    <span class="status-badge status-<%= city.local_guide_name ? city.local_guide_status : 'PENDING' %>">
+                                                        <%= city.local_guide_name ? (city.local_guide_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Atanmadı' %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-primary fw-bold edit-city-ops-btn px-3 shadow-sm" 
+                                                        data-bs-toggle="modal" data-bs-target="#editCityModal"
+                                                        data-id="<%= city.id %>" data-name="<%= city.city_name %>" data-cityid="<%= city.city_id %>"
+                                                        data-hotelids="<%= city.hotel_id %>" data-hotelstatus="<%= city.hotel_status %>"
+                                                        data-restaurantids="<%= city.restaurant_id %>" data-restaurantstatus="<%= city.restaurant_status %>"
+                                                        data-generalguidestatus="<%= city.general_guide_status %>" data-guide="<%= city.local_guide_status %>">
+                                                    <i class="fa-solid fa-pen-to-square me-1"></i> Güncelle
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+                <div class="card p-4 shadow-sm bg-white h-100">
+                    <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-circle-plus me-2 text-primary"></i> Tura Şehir Ekle</h5>
+                    <form action="/add-city-to-tour/<%= tour.id %>" method="POST" class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small">Operasyon Yapılacak Şehir</label>
+                            <select name="city_id" class="form-select fw-semibold" required>
+                                <option value="">Şehir Seçin</option>
+                                <% allCities.forEach(c => { %> <option value="<%= c.id %>"><%= c.city_name %></option> <% }) %>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small">Tur Lideri / Ana Rehber</label>
+                            <select name="general_guide_id" class="form-select fw-semibold">
+                                <option value="">Ana Rehber Seçin</option>
+                                <% generalGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
+                            </select>
+                        </div>
+                        <div class="col-md-12 my-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="toggleLocalGuide">
+                                <label class="form-check-label fw-bold small text-success" for="toggleLocalGuide">🗺️ Bu Şehirde Yerel Rehber Eşlik Edecek</label>
+                            </div>
+                        </div>
+                        <div class="col-md-12 d-none" id="localGuideSelectionWrapper">
+                            <label class="form-label fw-bold small text-secondary">Şehir Yerel Rehberi</label>
+                            <select name="local_guide_id" id="local_guide_select" class="form-select fw-semibold">
+                                <option value="">Yerel Rehber Seçin</option>
+                                <% localGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
+                            </select>
+                        </div>
+                        <div class="col-md-12 mt-4">
+                            <button type="submit" class="btn btn-success w-100 fw-bold py-2"><i class="fa-solid fa-plus me-1"></i> Şehri Tura Bağla</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editCityModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius: 15px;">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-city me-2"></i> <span id="modal-city-title"></span> Şehir Operasyonu</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editCityForm" action="/update-city-operation" method="POST">
+                    <input type="hidden" name="operation_id" id="modal_op_id">
+                    <div class="modal-body p-4">
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold mb-0 small text-secondary">Otel Rezervasyon Durumu</label>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-bold small" id="btn-quick-add-hotel">+ Hızlı Ekle</button>
+                            </div>
+                            <select name="hotel_ids[]" id="modal-hotel" class="form-select select2-multiple mb-2" multiple data-placeholder="Otel Seçiniz "></select>
+                            <select name="hotel_status" id="modal-hotel-status" class="form-select fw-semibold mt-2">
+                                <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold mb-0 small text-secondary">Restoran Rezervasyon Durumu</label>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-bold small" id="btn-quick-add-restaurant">+ Hızlı Ekle</button>
+                            </div>
+                            <select name="restaurant_ids[]" id="modal-restaurant" class="form-select select2-multiple mb-2" multiple data-placeholder="Restoran Seçiniz"></select>
+                            <select name="restaurant_status" id="modal-restaurant-status" class="form-select fw-semibold mt-2">
+                                <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                            </select>
+                        </div>
+                        <div class="mb-4 bg-light p-3 rounded border">
+                            <label class="form-label fw-bold small text-primary d-block mb-2"><i class="fa-solid fa-user-tie me-1"></i> Ana Rehber (Leader) Seçimi & Durumu</label>
+                            <select name="general_guide_id" id="modal-general-guide" class="form-select fw-semibold mb-2">
+                                <option value=""> Ana Rehber Değiştir / Ekle </option>
+                                <% generalGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
+                            </select>
+                            <select name="general_guide_status" id="modal-general-guide-status" class="form-select form-select-sm fw-semibold">
+                                <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                            </select>
+                        </div>
+                        <div class="mb-4 bg-light p-3 rounded border">
+                            <label class="form-label fw-bold small text-secondary d-block mb-2"><i class="fa-solid fa-map me-1"></i> Yerel Rehber Seçimi & Durumu</label>
+                            <select name="local_guide_id" id="modal-local-guide" class="form-select fw-semibold mb-2">
+                                <option value="">Yerel Rehber Değiştir / Ekle </option>
+                                <% localGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
+                            </select>
+                            <select name="local_guide_status" id="modal-guide" class="form-select form-select-sm fw-semibold">
+                                <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Kapat</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Değişiklikleri Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <%- include('partials/modal-quick-hotel') %>
+    <%- include('partials/modal-quick-restaurant') %>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="/js/quick-add.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.select2-multiple').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $('#editCityModal') });
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleSwitch = document.getElementById('toggleLocalGuide');
+            const wrapper = document.getElementById('localGuideSelectionWrapper');
+            const localSelect = document.getElementById('local_guide_select');
+            if (toggleSwitch && wrapper) {
+                toggleSwitch.addEventListener('change', function() {
+                    if (this.checked) { wrapper.classList.remove('d-none'); localSelect.setAttribute('required', 'required'); } 
+                    else { wrapper.classList.add('d-none'); localSelect.removeAttribute('required'); localSelect.value = ""; }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
