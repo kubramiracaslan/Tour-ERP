@@ -1,12 +1,18 @@
-const db = require('../db');
+// controllers/managementController.js
+const ManagementModel = require('../models/managementModel');
 
 // GET: Render Definition Page
 exports.getManagementPage = async (req, res) => {
     try {
-        const [countries] = await db.execute('SELECT * FROM countries ORDER BY country_name ASC');
-        res.render('management', { countries , page_path: '/management'});
+        const countries = await ManagementModel.getAllCountries();
+        res.render('management', {
+            countries,
+            page_path: '/management',
+            error: req.query.error || null
+        });
     } catch (error) {
-        res.status(500).send('Error loading management page: ' + error.message);
+        console.error('Tanımlamalar sayfası yüklenirken hata:', error);
+        res.status(500).send('Tanımlamalar sayfası yüklenirken bir hata oluştu.');
     }
 };
 
@@ -14,10 +20,14 @@ exports.getManagementPage = async (req, res) => {
 exports.addCountry = async (req, res) => {
     try {
         const { country_name } = req.body;
-        await db.execute('INSERT INTO countries (country_name) VALUES (?)', [country_name]);
+        if (!country_name || country_name.trim() === '') {
+            return res.redirect('/management?error=invalid_country_name');
+        }
+        await ManagementModel.insertCountry(country_name.trim());
         res.redirect('/management');
     } catch (error) {
-        res.status(500).send('Error saving country: ' + error.message);
+        console.error('Ülke kaydetme hatası:', error);
+        res.status(500).send('Ülke kaydedilirken bir hata oluştu.');
     }
 };
 
@@ -25,36 +35,37 @@ exports.addCountry = async (req, res) => {
 exports.addCity = async (req, res) => {
     try {
         const { city_name, country_id } = req.body;
-        await db.execute('INSERT INTO cities (city_name, country_id) VALUES (?, ?)', [city_name, country_id]);
+        if (!city_name || city_name.trim() === '' || !country_id) {
+            return res.redirect('/management?error=invalid_city');
+        }
+        await ManagementModel.insertCity(city_name.trim(), country_id);
         res.redirect('/management');
     } catch (error) {
-        res.status(500).send('Error saving city: ' + error.message);
+        console.error('Şehir kaydetme hatası:', error);
+        res.status(500).send('Şehir kaydedilirken bir hata oluştu.');
     }
 };
 
 // POST: Save Agency
 exports.addAgency = async (req, res) => {
     try {
-        const agencyName = req.body.agency_name || req.body.agencyName;
-        const phone = req.body.phone;
-        const email = req.body.email;
+        // Not: Form alan isimlerini standartlaştırdık -> her yerde snake_case (agency_name)
+        const { agency_name, phone, email } = req.body;
 
-        if (!agencyName || agencyName.trim() === "") {
-            return res.send('<script>alert("Lütfen geçerli bir acente adı giriniz!"); window.history.back();</script>');
+        if (!agency_name || agency_name.trim() === '') {
+            return res.redirect('/tour-demands?error=invalid_agency_name');
         }
 
-        // Sorguyu yeni kolonlara göre güncelledik
-        const query = 'INSERT INTO agencies (agency_name, phone, email) VALUES (?, ?, ?)';
-        await db.execute(query, [
-            agencyName.trim(), 
-            phone ? phone.trim() : null, 
-            email ? email.trim() : null
-        ]);
+        await ManagementModel.insertAgency({
+            agency_name: agency_name.trim(),
+            phone: phone ? phone.trim() : null,
+            email: email ? email.trim() : null
+        });
 
         res.redirect('/tour-demands');
     } catch (error) {
-        console.error("Acente kaydetme hatası:", error);
-        res.status(500).send('Error saving agency: ' + error.message);
+        console.error('Acente kaydetme hatası:', error);
+        res.status(500).send('Acente kaydedilirken bir hata oluştu.');
     }
 };
 
@@ -62,10 +73,13 @@ exports.addAgency = async (req, res) => {
 exports.addGuide = async (req, res) => {
     try {
         const { guide_name, phone, guide_type } = req.body;
-        await db.execute('INSERT INTO guides (guide_name, phone, guide_type) VALUES (?, ?, ?)', [guide_name, phone, guide_type]);
+        if (!guide_name || guide_name.trim() === '') {
+            return res.redirect('/management?error=invalid_guide_name');
+        }
+        await ManagementModel.insertGuide({ guide_name: guide_name.trim(), phone, guide_type });
         res.redirect('/management');
     } catch (error) {
-        res.status(500).send('Error saving guide: ' + error.message);
+        console.error('Rehber kaydetme hatası:', error);
+        res.status(500).send('Rehber kaydedilirken bir hata oluştu.');
     }
 };
-

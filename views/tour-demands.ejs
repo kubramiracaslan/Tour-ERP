@@ -11,9 +11,9 @@
         .navbar { background: linear-gradient(135deg, #0f172a, #1e293b); }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .status-PENDING { background-color: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
+        .status-IN_PROGRESS { background-color: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
         .status-APPROVED { background-color: #d1fae5; color: #065f46; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
         .status-REJECTED { background-color: #fee2e2; color: #991b1b; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
-        .status-IN_PROGRESS { background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
         .table-responsive { background: white; border-radius: 15px; padding: 15px; overflow-x: auto; }
         .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
     </style>
@@ -41,7 +41,7 @@
 
     <div class="container-fluid my-4 px-4">
         <div class="row">
-            
+
             <div class="col-xl-3 col-lg-4 mb-4">
                 <div class="card p-4 shadow-sm bg-white">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -97,7 +97,7 @@
                 <div class="card p-4 shadow-sm bg-white h-100">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h4 class="fw-bold text-dark m-0"><i class="fa-solid fa-table-list text-success me-2"></i> Talep Takip Tablosu</h4>
-                        
+
                         <div class="d-flex align-items-center gap-2">
                             <a href="/export-demands-excel" class="btn btn-sm btn-success fw-bold px-3 py-2 shadow-sm">
                                 <i class="fa-solid fa-file-excel me-1"></i> Excel'e Aktar
@@ -107,7 +107,7 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle" id="demandsTable">
                             <thead class="table-light">
                                 <tr>
                                     <th>Tur / Talep Adı</th>
@@ -118,6 +118,46 @@
                                     <th>Mevcut Durum</th>
                                     <th class="text-center" style="width: 200px;">Durumu Güncelle</th>
                                 </tr>
+                                <!-- FİLTRE SATIRI -->
+                                <tr class="table-white">
+                                    <th class="p-1">
+                                        <input type="text" id="filter-demand-name" class="form-control form-control-sm" placeholder="Ara...">
+                                    </th>
+                                    <th class="p-1">
+                                        <select id="filter-agency" class="form-select form-select-sm">
+                                            <option value="">Tümü</option>
+                                            <% agencies.forEach(a => { %>
+                                                <option value="<%= a.agency_name %>"><%= a.agency_name %></option>
+                                            <% }) %>
+                                        </select>
+                                    </th>
+                                    <th class="p-1">
+                                        <input type="date" id="filter-first-contact" class="form-control form-control-sm">
+                                    </th>
+                                    <th class="p-1">
+                                        <input type="date" id="filter-offer-date" class="form-control form-control-sm">
+                                    </th>
+                                    <th class="p-1">
+                                        <div class="d-flex gap-1">
+                                            <input type="number" id="filter-price-min" class="form-control form-control-sm" placeholder="Min">
+                                            <input type="number" id="filter-price-max" class="form-control form-control-sm" placeholder="Max">
+                                        </div>
+                                    </th>
+                                    <th class="p-1">
+                                        <select id="filter-status" class="form-select form-select-sm">
+                                            <option value="">Tümü</option>
+                                            <option value="PENDING">Beklemede</option>
+                                            <option value="IN_PROGRESS">Üzerinde Çalışılıyor</option>
+                                            <option value="APPROVED">Onaylandı</option>
+                                            <option value="REJECTED">Reddedildi</option>
+                                        </select>
+                                    </th>
+                                    <th class="p-1 text-center">
+                                        <button type="button" id="btn-clear-filters" class="btn btn-sm btn-outline-secondary" title="Filtreleri Temizle">
+                                            <i class="fa-solid fa-filter-circle-xmark"></i>
+                                        </button>
+                                    </th>
+                                </tr>
                             </thead>
                             <tbody>
                                 <% if(demands.length === 0) { %>
@@ -126,26 +166,32 @@
                                     </tr>
                                 <% } %>
                                 <% demands.forEach(d => { %>
-                                    <tr class="fw-semibold">
+                                    <tr class="fw-semibold"
+                                        data-demand-name="<%= (d.demand_name || '').toLocaleLowerCase('tr-TR') %>"
+                                        data-agency-name="<%= d.agency_name || '' %>"
+                                        data-first-contact="<%= d.first_contact_date ? d.first_contact_date.toISOString().split('T')[0] : '' %>"
+                                        data-offer-date="<%= d.offer_date ? d.offer_date.toISOString().split('T')[0] : '' %>"
+                                        data-price="<%= Number(d.offered_price || 0) %>"
+                                        data-status="<%= d.status %>">
                                         <td class="text-primary fs-5"><%= d.demand_name %></td>
                                         <td>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="text-dark">
-                                                    <i class="fa-solid fa-building text-secondary me-1"></i> 
+                                                    <i class="fa-solid fa-building text-secondary me-1"></i>
                                                     <%= d.agency_name || 'Bilinmiyor' %>
                                                 </span>
 
                                                 <% if (d.phone || d.email) { %>
-                                                    <span class="text-info" 
-                                                          data-bs-toggle="tooltip" 
-                                                          data-bs-html="true" 
-                                                          data-bs-title="📞 Tel: <%= d.phone || '-' %> <br> ✉️ E-posta: <%= d.email || '-' %>" 
+                                                    <span class="text-info"
+                                                          data-bs-toggle="tooltip"
+                                                          data-bs-html="true"
+                                                          data-bs-title="📞 Tel: <%= d.phone || '-' %> <br> ✉️ E-posta: <%= d.email || '-' %>"
                                                           style="cursor: pointer;">
                                                         <i class="fa-solid fa-circle-info small"></i>
                                                     </span>
                                                 <% } %>
                                             </div>
-                                        </td>                                       
+                                        </td>
                                         <td><small class="text-muted"><%= d.first_contact_date ? d.first_contact_date.toISOString().split('T')[0] : '-' %></small></td>
                                         <td><small class="text-muted"><%= d.offer_date ? d.offer_date.toISOString().split('T')[0] : '-' %></small></td>
                                         <td class="text-dark">
@@ -154,9 +200,9 @@
                                         <td>
                                             <span class="status-<%= d.status %>">
                                                 <% if(d.status === 'PENDING') { %> Beklemede <% } %>
+                                                <% if(d.status === 'IN_PROGRESS') { %> Üzerinde Çalışılıyor <% } %>
                                                 <% if(d.status === 'APPROVED') { %> Onaylandı (Tura Dönüştü) <% } %>
                                                 <% if(d.status === 'REJECTED') { %> Reddedildi <% } %>
-                                                <% if(d.status === 'IN_PROGRESS') { %> Talep Üzerinde Çalışılıyor <% } %>
                                             </span>
                                             <% if(d.status === 'REJECTED' && d.rejection_reason) { %>
                                                 <small class="d-block text-danger mt-1 small fw-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> Gerekçe: <%= d.rejection_reason %></small>
@@ -166,7 +212,7 @@
                                             <form action="/update-demand-status/<%= d.id %>" method="POST" id="statusForm-<%= d.id %>" class="d-flex gap-1 align-items-center">
                                                 <select name="status" class="form-select form-select-sm fw-bold py-1" onchange="handleStatusChange(this, '<%= d.id %>', '<%= d.demand_name %>')">
                                                     <option value="PENDING" <%= d.status === 'PENDING' ? 'selected' : '' %>>Beklemede</option>
-                                                    <option value="IN_PROGRESS" <%= d.status === 'IN_PROGRESS' ? 'selected' : '' %>>Talep Üzerinde Çalışılıyor</option>
+                                                    <option value="IN_PROGRESS" <%= d.status === 'IN_PROGRESS' ? 'selected' : '' %>>Üzerinde Çalışılıyor</option>
                                                     <option value="APPROVED" <%= d.status === 'APPROVED' ? 'selected' : '' %>>Onayla 👍</option>
                                                     <option value="REJECTED" <%= d.status === 'REJECTED' ? 'selected' : '' %>>Reddet 👎</option>
                                                 </select>
@@ -255,6 +301,82 @@
                 myModal.show();
             }
         }
+
+        // -----------------------------------------------------------
+        // Talep Takip Tablosu - Kolon Filtreleme (client-side, anlık)
+        // -----------------------------------------------------------
+        document.addEventListener('DOMContentLoaded', function () {
+            const nameInput = document.getElementById('filter-demand-name');
+            const agencySelect = document.getElementById('filter-agency');
+            const firstContactInput = document.getElementById('filter-first-contact');
+            const offerDateInput = document.getElementById('filter-offer-date');
+            const priceMinInput = document.getElementById('filter-price-min');
+            const priceMaxInput = document.getElementById('filter-price-max');
+            const statusSelect = document.getElementById('filter-status');
+            const clearBtn = document.getElementById('btn-clear-filters');
+            const tableBody = document.querySelector('#demandsTable tbody');
+
+            if (!tableBody) return;
+
+            function applyFilters() {
+                // Türkçe karakterler (İ/I/ı/i) doğru küçültülsün diye locale belirtiyoruz
+                const nameQuery = (nameInput.value || '').trim().toLocaleLowerCase('tr-TR');
+                const agencyQuery = agencySelect.value;
+                const firstContactQuery = firstContactInput.value; // YYYY-MM-DD
+                const offerDateQuery = offerDateInput.value; // YYYY-MM-DD
+                const priceMin = priceMinInput.value !== '' ? Number(priceMinInput.value) : null;
+                const priceMax = priceMaxInput.value !== '' ? Number(priceMaxInput.value) : null;
+                const statusQuery = statusSelect.value;
+
+                const rows = tableBody.querySelectorAll('tr[data-demand-name]');
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const rowPrice = Number(row.getAttribute('data-price') || 0);
+
+                    const matchesName = !nameQuery || row.getAttribute('data-demand-name').includes(nameQuery);
+                    const matchesAgency = !agencyQuery || row.getAttribute('data-agency-name') === agencyQuery;
+                    const matchesFirstContact = !firstContactQuery || row.getAttribute('data-first-contact') === firstContactQuery;
+                    const matchesOfferDate = !offerDateQuery || row.getAttribute('data-offer-date') === offerDateQuery;
+                    const matchesPriceMin = priceMin === null || rowPrice >= priceMin;
+                    const matchesPriceMax = priceMax === null || rowPrice <= priceMax;
+                    const matchesStatus = !statusQuery || row.getAttribute('data-status') === statusQuery;
+
+                    const isVisible = matchesName && matchesAgency && matchesFirstContact
+                        && matchesOfferDate && matchesPriceMin && matchesPriceMax && matchesStatus;
+
+                    row.style.display = isVisible ? '' : 'none';
+                    if (isVisible) visibleCount++;
+                });
+
+                // "Sonuç bulunamadı" satırını yönet
+                let emptyRow = tableBody.querySelector('#filter-empty-row');
+                if (visibleCount === 0) {
+                    if (!emptyRow) {
+                        emptyRow = document.createElement('tr');
+                        emptyRow.id = 'filter-empty-row';
+                        emptyRow.innerHTML = '<td colspan="7" class="text-center py-4 text-muted fw-semibold">Filtreyle eşleşen talep bulunamadı.</td>';
+                        tableBody.appendChild(emptyRow);
+                    }
+                } else if (emptyRow) {
+                    emptyRow.remove();
+                }
+            }
+
+            [nameInput, priceMinInput, priceMaxInput].forEach(el => el.addEventListener('input', applyFilters));
+            [agencySelect, firstContactInput, offerDateInput, statusSelect].forEach(el => el.addEventListener('change', applyFilters));
+
+            clearBtn.addEventListener('click', () => {
+                nameInput.value = '';
+                agencySelect.value = '';
+                firstContactInput.value = '';
+                offerDateInput.value = '';
+                priceMinInput.value = '';
+                priceMaxInput.value = '';
+                statusSelect.value = '';
+                applyFilters();
+            });
+        });
     </script>
 </body>
 </html>

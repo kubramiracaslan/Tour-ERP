@@ -12,41 +12,12 @@
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .navbar { background: linear-gradient(135deg, #1e293b, #0f172a); }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .status-badge { padding: 4px 10px; border-radius: 30px; font-weight: 600; font-size: 0.75rem; display: block; text-align: center; }
+        .status-badge { padding: 4px 10px; border-radius: 30px; font-weight: 600; font-size: 0.75rem; display: inline-block; text-align: center; }
         .status-DONE { background-color: #d1fae5; color: #065f46; }
         .status-PENDING { background-color: #fef3c7; color: #92400e; }
         .status-MISSING { background-color: #fee2e2; color: #991b1b; }
         .select2-container--bootstrap-5 .select2-selection--multiple { border-radius: 8px !important; min-height: 40px; border: 1px solid #dee2e6; }
-
-        /* Modal penceresinin ekrandan taşmasını önleyen ana kapsayıcı */
-.fluid-operation-modal .modal-content {
-    max-height: 92vh !important;
-    display: flex;
-    flex-direction: column;
-    border-radius: 15px;
-    overflow: hidden;
-}
-
-/* Form elemanlarının dikey mesafelerini ekran yüksekliğine göre esneten gövde */
-.fluid-operation-modal .modal-body {
-    overflow-y: auto !important;
-    padding: calc(10px + 1vh) calc(10px + 1vw) !important;
-}
-
-/* Ekran dikeyde küçüldükçe form elemanlarının boşluklarını daraltır */
-.fluid-operation-modal .mb-4 {
-    margin-bottom: calc(8px + 0.5vh) !important;
-}
-
-/* Select2 kutularının taşma yapmasını engelleyen kesin genişlik */
-.fluid-operation-modal .select2-container {
-    width: 100% !important;
-}
-
-/* Rehber kartlarının iç boşluklarını ve marjlarını esnekleştirir */
-.fluid-operation-modal .bg-light {
-    padding: calc(8px + 0.5vh) !important;
-}
+        .restaurant-chip { display: flex; justify-content: space-between; align-items: center; padding: 3px 8px; border-radius: 8px; background: #f8fafc; margin-bottom: 4px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -111,8 +82,8 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Şehir</th>
-                                        <th>Otel Bilgisi</th>
-                                        <th>Restoran Bilgisi</th>
+                                        <th>Otel</th>
+                                        <th>Restoranlar</th>
                                         <th>Ana Rehber (Leader)</th>
                                         <th>Yerel Rehber</th>
                                         <th class="text-center">İşlem</th>
@@ -122,18 +93,29 @@
                                     <% managedCities.forEach(city => { %>
                                         <tr>
                                             <td class="fw-bold text-muted fs-6"><%= city.city_name %></td>
+
+                                            <!-- OTEL: tekil -->
                                             <td>
                                                 <div class="d-flex flex-column align-items-start">
-                                                    <span class="fw-bold text-secondary mb-1 small text-wrap" style="max-width: 180px;"><%= city.hotel_names || 'Seçilmedi' %></span>
-                                                    <span class="status-badge status-<%= city.hotel_names ? city.hotel_status : 'MISSING' %>"><%= city.hotel_names ? (city.hotel_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Seçilmedi' %></span>
+                                                    <span class="fw-bold text-secondary mb-1 small text-wrap" style="max-width: 160px;"><%= city.hotel_name || 'Seçilmedi' %></span>
+                                                    <span class="status-badge status-<%= city.hotel_name ? city.hotel_status : 'MISSING' %>"><%= city.hotel_name ? (city.hotel_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Seçilmedi' %></span>
                                                 </div>
                                             </td>
-                                            <td>
-                                                <div class="d-flex flex-column align-items-start">
-                                                    <span class="fw-bold text-secondary mb-1 small text-wrap" style="max-width: 180px;"><%= city.restaurant_names || 'Seçilmedi' %></span>
-                                                    <span class="status-badge status-<%= city.restaurant_names ? city.restaurant_status : 'MISSING' %>"><%= city.restaurant_names ? (city.restaurant_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı') : 'Seçilmedi' %></span>
-                                                </div>
+
+                                            <!-- RESTORANLAR: çoklu, her biri kendi durumuyla -->
+                                            <td style="min-width: 200px;">
+                                                <% if (!city.restaurants || city.restaurants.length === 0) { %>
+                                                    <span class="status-badge status-MISSING">Seçilmedi</span>
+                                                <% } else { %>
+                                                    <% city.restaurants.forEach(r => { %>
+                                                        <div class="restaurant-chip">
+                                                            <span class="fw-semibold text-dark"><%= r.restaurant_name %></span>
+                                                            <span class="status-badge status-<%= r.status %> ms-2"><%= r.status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı' %></span>
+                                                        </div>
+                                                    <% }) %>
+                                                <% } %>
                                             </td>
+
                                             <td>
                                                 <div class="d-flex flex-column align-items-start">
                                                     <span class="fw-bold text-muted mb-1 small"><%= city.general_guide_name || 'Atanmadı' %></span>
@@ -151,12 +133,18 @@
                                                 </div>
                                             </td>
                                             <td class="text-center">
-                                                <button class="btn btn-sm btn-primary fw-bold edit-city-ops-btn px-3 shadow-sm" 
+                                                <button class="btn btn-sm btn-primary fw-bold edit-city-ops-btn px-3 shadow-sm"
                                                         data-bs-toggle="modal" data-bs-target="#editCityModal"
-                                                        data-id="<%= city.id %>" data-name="<%= city.city_name %>" data-cityid="<%= city.city_id %>"
-                                                        data-hotelids="<%= city.hotel_id %>" data-hotelstatus="<%= city.hotel_status %>"
-                                                        data-restaurantids="<%= city.restaurant_id %>" data-restaurantstatus="<%= city.restaurant_status %>"
-                                                        data-generalguidestatus="<%= city.general_guide_status %>" data-guide="<%= city.local_guide_status %>">
+                                                        data-id="<%= city.id %>"
+                                                        data-name="<%= city.city_name %>"
+                                                        data-cityid="<%= city.city_id %>"
+                                                        data-hotelid="<%= city.hotel_id %>"
+                                                        data-hotelstatus="<%= city.hotel_status %>"
+                                                        data-generalguideid="<%= city.general_guide_id %>"
+                                                        data-generalguidestatus="<%= city.general_guide_status %>"
+                                                        data-localguideid="<%= city.local_guide_id %>"
+                                                        data-guide="<%= city.local_guide_status %>"
+                                                        data-restaurants='<%- JSON.stringify(city.restaurants || []) %>'>
                                                     <i class="fa-solid fa-pen-to-square me-1"></i> Güncelle
                                                 </button>
                                             </td>
@@ -209,75 +197,91 @@
         </div>
     </div>
 
-<div class="modal fade fluid-operation-modal" id="editCityModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white py-2 px-3">
-                <h5 class="modal-title fw-bold fs-6"><i class="fa-solid fa-city me-2"></i> <span id="modal-city-title"></span> Şehir Operasyonu</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal fade" id="editCityModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius: 15px;">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-city me-2"></i> <span id="modal-city-title"></span> Şehir Operasyonu</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editCityForm" action="/update-city-operation" method="POST">
+                    <input type="hidden" name="operation_id" id="modal_op_id">
+                    <!-- Restoran listesi buraya JSON olarak yazılıp gönderilecek (bkz. quick-add.js) -->
+                    <input type="hidden" name="restaurants_data" id="restaurants_data_input">
+
+                    <div class="modal-body p-4">
+
+                        <!-- OTEL: TEKİL SEÇİM -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold mb-0 small text-secondary">Otel Seçimi (Tek Otel)</label>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-bold small" id="btn-quick-add-hotel">+ Hızlı Ekle</button>
+                            </div>
+                            <select name="hotel_id" id="modal-hotel" class="form-select mb-2">
+                                <option value="">-- Otel Seçin --</option>
+                            </select>
+                            <select name="hotel_status" id="modal-hotel-status" class="form-select fw-semibold mt-2">
+                                <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                            </select>
+                        </div>
+
+                        <!-- RESTORAN: ÇOKLU SEÇİM, HER BİRİ KENDİ DURUMUYLA -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold mb-0 small text-secondary">Restoranlar (Çoklu — her birinin kendi durumu var)</label>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-bold small" id="btn-quick-add-restaurant">+ Hızlı Ekle</button>
+                            </div>
+                            <div class="d-flex gap-2 mb-2">
+                                <select id="restaurant-add-select" class="form-select">
+                                    <option value="">-- Restoran Seçin --</option>
+                                </select>
+                                <button type="button" id="btn-add-restaurant-to-list" class="btn btn-outline-primary fw-bold text-nowrap">
+                                    <i class="fa-solid fa-plus"></i> Ekle
+                                </button>
+                            </div>
+                            <div id="restaurant-list-container" class="border rounded p-2 bg-light">
+                                <p class="text-muted small fst-italic mb-0">Henüz restoran eklenmedi.</p>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 bg-light p-3 rounded border">
+                            <label class="form-label fw-bold small text-primary d-block mb-2"><i class="fa-solid fa-user-tie me-1"></i> Ana Rehber (Leader) Seçimi & Durumu</label>
+                            <select name="general_guide_id" id="modal-general-guide" class="form-select fw-semibold mb-2">
+                                <option value=""> Ana Rehber Değiştir / Ekle </option>
+                                <% generalGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
+                            </select>
+                            <select name="general_guide_status" id="modal-general-guide-status" class="form-select form-select-sm fw-semibold">
+                                <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                            </select>
+                        </div>
+                        <div class="mb-4 bg-light p-3 rounded border">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="modal-toggle-local-guide">
+                                <label class="form-check-label fw-bold small text-success" for="modal-toggle-local-guide">🗺️ Bu Şehirde Yerel Rehber Eşlik Edecek</label>
+                            </div>
+                            <!-- Switch kapalıyken bu bölüm gizlenir ve kaydedince yerel rehber gerçekten temizlenir -->
+                            <div id="modal-local-guide-wrapper" class="d-none">
+                                <label class="form-label fw-bold small text-secondary d-block mb-2"><i class="fa-solid fa-map me-1"></i> Yerel Rehber Seçimi & Durumu</label>
+                                <select name="local_guide_id" id="modal-local-guide" class="form-select fw-semibold mb-2">
+                                    <option value="">Yerel Rehber Değiştir / Ekle </option>
+                                    <% localGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
+                                </select>
+                                <select name="local_guide_status" id="modal-guide" class="form-select form-select-sm fw-semibold">
+                                    <option value="PENDING">Tamamlanmadı</option> <option value="DONE">Tamamlandı</option>
+                                </select>
+                            </div>
+                            <!-- Switch kapalıysa "1" olur, controller bunu görünce yerel rehberi null'a çeker -->
+                            <input type="hidden" name="clear_local_guide" id="modal-clear-local-guide" value="0">
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Kapat</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Değişiklikleri Kaydet</button>
+                    </div>
+                </form>
             </div>
-            <form id="editCityForm" action="/update-city-operation" method="POST" style="margin:0;">
-                <input type="hidden" name="operation_id" id="modal_op_id">
-                
-                <div class="modal-body">
-                    
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label fw-bold mb-0 small text-secondary">Otel Rezervasyon Durumu</label>
-                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-bold small" id="btn-quick-add-hotel">+ Hızlı Ekle</button>
-                        </div>
-                        <select name="hotel_ids[]" id="modal-hotel" class="form-select select2-multiple mb-2" multiple data-placeholder="Otel Seçiniz" data-dropdown-parent="#editCityModal" style="width: 100%;"></select>
-                        <select name="hotel_status" id="modal-hotel-status" class="form-select form-select-sm fw-semibold mt-1">
-                            <option value="PENDING">Tamamlanmadı</option> 
-                            <option value="DONE">Tamamlandı</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label fw-bold mb-0 small text-secondary">Restoran Rezervasyon Durumu</label>
-                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-bold small" id="btn-quick-add-restaurant">+ Hızlı Ekle</button>
-                        </div>
-                        <select name="restaurant_ids[]" id="modal-restaurant" class="form-select select2-multiple mb-2" multiple data-placeholder="Restoran Seçiniz" data-dropdown-parent="#editCityModal" style="width: 100%;"></select>
-                        <select name="restaurant_status" id="modal-restaurant-status" class="form-select form-select-sm fw-semibold mt-1">
-                            <option value="PENDING">Tamamlanmadı</option> 
-                            <option value="DONE">Tamamlandı</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-4 bg-light p-2 rounded border">
-                        <label class="form-label fw-bold small text-primary d-block mb-1" style="font-size: 0.8rem;"><i class="fa-solid fa-user-tie me-1"></i> Ana Rehber (Leader) Seçimi & Durumu</label>
-                        <select name="general_guide_id" id="modal-general-guide" class="form-select form-select-sm fw-semibold mb-1">
-                            <option value=""> Ana Rehber Değiştir / Ekle </option>
-                            <% generalGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
-                        </select>
-                        <select name="general_guide_status" id="modal-general-guide-status" class="form-select form-select-sm fw-semibold">
-                            <option value="PENDING">Tamamlanmadı</option> 
-                            <option value="DONE">Tamamlandı</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-4 bg-light p-2 rounded border">
-                        <label class="form-label fw-bold small text-secondary d-block mb-1" style="font-size: 0.8rem;"><i class="fa-solid fa-map me-1"></i> Yerel Rehber Seçimi & Durumu</label>
-                        <select name="local_guide_id" id="modal-local-guide" class="form-select form-select-sm fw-semibold mb-1">
-                            <option value="">Yerel Rehber Değiştir / Ekle </option>
-                            <% localGuides.forEach(g => { %> <option value="<%= g.id %>"><%= g.guide_name %></option> <% }) %>
-                        </select>
-                        <select name="local_guide_status" id="modal-guide" class="form-select form-select-sm fw-semibold">
-                            <option value="PENDING">Tamamlanmadı</option> 
-                            <option value="DONE">Tamamlandı</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="modal-footer bg-light py-2 px-3">
-                    <button type="button" class="btn btn-secondary fw-bold btn-sm" data-bs-dismiss="modal">Kapat</button>
-                    <button type="submit" class="btn btn-primary fw-bold px-4 btn-sm">Değişiklikleri Kaydet</button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
 
     <%- include('partials/modal-quick-hotel') %>
     <%- include('partials/modal-quick-restaurant') %>
@@ -287,16 +291,13 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="/js/quick-add.js"></script>
     <script>
-        $(document).ready(function() {
-            $('.select2-multiple').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $('#editCityModal') });
-        });
         document.addEventListener('DOMContentLoaded', function() {
             const toggleSwitch = document.getElementById('toggleLocalGuide');
             const wrapper = document.getElementById('localGuideSelectionWrapper');
             const localSelect = document.getElementById('local_guide_select');
             if (toggleSwitch && wrapper) {
                 toggleSwitch.addEventListener('change', function() {
-                    if (this.checked) { wrapper.classList.remove('d-none'); localSelect.setAttribute('required', 'required'); } 
+                    if (this.checked) { wrapper.classList.remove('d-none'); localSelect.setAttribute('required', 'required'); }
                     else { wrapper.classList.add('d-none'); localSelect.removeAttribute('required'); localSelect.value = ""; }
                 });
             }
@@ -304,4 +305,3 @@
     </script>
 </body>
 </html>
-

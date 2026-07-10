@@ -8,15 +8,6 @@ const managementRoutes = require('./routes/managementRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const whatsappClient = new Client({
-    authStrategy: new LocalAuth(), // Oturum bilgilerini kaydeder, her seferinde QR kod okutmazsin
-    puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Sunucu uyumluluğu için
-    }
-});
-
 // Middlewares
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -36,20 +27,50 @@ app.listen(PORT, () => {
     console.log(`Kurumsal ERP Sunucusu Hazir: http://localhost:${PORT}`);
 });
 
-// WHATSAPP
-// Terminale QR Kod Basma Etkinliği
-whatsappClient.on('qr', (qr) => {
-    console.log('WhatsApp Bağlantisi İçin QR Kodu Telefonunuzdan Taratin:');
-    qrcode.generate(qr, { small: true });
-});
+// ---------------------------------------------------------------------
+// WHATSAPP---UNUTMA
+// Yeni şirket hattı gelene kadar bu blok hiç çalışmasın diye .env'deki
+// WHATSAPP_ENABLED bayrağının arkasına aldım. Hat gelip QR'ı taratacağım
+// gün .env'de WHATSAPP_ENABLED=true yapmam yeterli, kodda başka hiçbir
+// değişiklik gerekmiyor.
+// ---------------------------------------------------------------------
+global.whatsappClient = null;
+global.whatsappReady = false;
 
-// Bağlanti Başarili Olduğunda
-whatsappClient.on('ready', () => {
-    console.log('WhatsApp Web Bağlantisi Başariyla Sağlandi, Mesaj Gönderimine Hazir!');
-});
+if (process.env.WHATSAPP_ENABLED === 'true') {
+    const { Client, LocalAuth } = require('whatsapp-web.js');
+    const qrcode = require('qrcode-terminal');
 
-// WhatsApp'i Başlat
-whatsappClient.initialize();
+    const whatsappClient = new Client({
+        authStrategy: new LocalAuth(), // Oturum bilgilerini kaydeder, her seferinde QR kod okutmazsin
+        puppeteer: {
+            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Sunucu uyumluluğu için
+        }
+    });
 
-// Diğer controller dosyalarindan bu istemciye erişebilmek için global değişkene atildi
-global.whatsappClient = whatsappClient;
+    // Terminale QR Kod Basma Etkinliği
+    whatsappClient.on('qr', (qr) => {
+        console.log('WhatsApp Bağlantisi İçin QR Kodu Telefonunuzdan Taratin:');
+        qrcode.generate(qr, { small: true });
+    });
+
+    // Bağlanti Başarili Olduğunda
+    whatsappClient.on('ready', () => {
+        console.log('WhatsApp Web Bağlantisi Başariyla Sağlandi, Mesaj Gönderimine Hazir!');
+        global.whatsappReady = true;
+    });
+
+    // Bağlantı koparsa bayrağı geri düşür
+    whatsappClient.on('disconnected', () => {
+        console.warn('WhatsApp Web bağlantısı koptu.');
+        global.whatsappReady = false;
+    });
+
+    // WhatsApp'i Başlat
+    whatsappClient.initialize();
+
+    // Diğer controller/util dosyalarından bu istemciye erişebilmek için global değişkene atıldı
+    global.whatsappClient = whatsappClient;
+} else {
+    console.log('[WhatsApp] WHATSAPP_ENABLED=false, entegrasyon devre dışı (hat bekleniyor).');
+}
