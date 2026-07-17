@@ -1,4 +1,3 @@
-// controllers/managementController.js
 const ManagementModel = require('../models/managementModel');
 
 // GET: Render Definition Page

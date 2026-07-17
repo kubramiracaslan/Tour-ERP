@@ -1,5 +1,3 @@
-// utils/whatsapp.js
-//
 // Hat henüz aktif değil. .env'de WHATSAPP_ENABLED=false olduğu sürece bu
 // fonksiyon sadece konsola log basar, hiçbir dış servise istek atmaz.
 //

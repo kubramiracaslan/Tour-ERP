@@ -34,7 +34,6 @@
                 <div class="navbar-nav ms-4 gap-2">
                     <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
                     <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
-                    <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
                     <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
                 </div>
             </div>
@@ -42,6 +41,11 @@
     </nav>
 
     <div class="container-fluid my-4 px-4">
+        <% if (typeof guideConflict !== 'undefined' && guideConflict) { %>
+            <div class="alert alert-danger fw-semibold shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i><%= guideConflict %>
+            </div>
+        <% } %>
         <div class="card p-4 mb-4 shadow-sm">
             <form action="/" method="GET" class="row g-3 align-items-end">
                 <div class="col-md-3">
@@ -185,8 +189,11 @@
                     <h5 class="modal-title fw-bold" id="newTourModalLabel"><i class="fa-solid fa-plane-departure me-2 text-success"></i> Yeni Tur Operasyon Kaydı</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="/add-tour" method="POST">
+                <form action="/add-tour" method="POST" id="newTourForm">
                     <div class="modal-body p-4">
+                        <div id="newTourModalError" class="alert alert-danger fw-semibold d-none mb-3">
+                            <i class="fa-solid fa-triangle-exclamation me-2"></i><span id="newTourModalErrorText"></span>
+                        </div>
                         <div class="row g-3">
                             <div class="col-md-12"> <label class="form-label fw-bold">Tur / Operasyon Adı</label> <input type="text" name="tour_name" class="form-control" placeholder="Örn: Balkan Turu" required> </div>
                             <div class="col-md-6"> <label class="form-label fw-bold">Başlangıç Tarihi</label> <input type="date" name="start_date" class="form-control" required> </div>
@@ -232,6 +239,58 @@
         $(document).ready(function() {
             $('#newTourModal').on('shown.bs.modal', function () {
                 $('.select2-cities').select2({ dropdownParent: $('#newTourModal'), placeholder: "🏙️ Şehir ismini yazarak arayın...", allowClear: true, width: '100%' });
+            });
+        });
+
+        // ---------------------------------------------------------------
+        // "Yeni Tur Oluştur" formu: normal submit yerine önce AJAX ile
+        // rehber çakışmasını kontrol ediyoruz. Çakışma varsa modal AÇIK
+        // kalır, hiçbir alan sıfırlanmaz, sadece içeride uyarı gösterilir.
+        // Çakışma yoksa form normal şekilde (sayfa yenilenerek) gönderilir.
+        // ---------------------------------------------------------------
+        document.addEventListener('DOMContentLoaded', function () {
+            const newTourForm = document.getElementById('newTourForm');
+            const errorBox = document.getElementById('newTourModalError');
+            const errorText = document.getElementById('newTourModalErrorText');
+
+            if (!newTourForm) return;
+
+            function showModalError(message) {
+                errorText.textContent = message;
+                errorBox.classList.remove('d-none');
+            }
+
+            function hideModalError() {
+                errorBox.classList.add('d-none');
+                errorText.textContent = '';
+            }
+
+            newTourForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                hideModalError();
+
+                const mainGuideId = newTourForm.main_guide_id.value;
+                const startDate = newTourForm.start_date.value;
+                const endDate = newTourForm.end_date.value;
+
+                if (mainGuideId && startDate && endDate) {
+                    try {
+                        const res = await fetch(`/api/guide-conflict?guide_id=${encodeURIComponent(mainGuideId)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`);
+                        const data = await res.json();
+
+                        if (data.conflict) {
+                            showModalError(data.message);
+                            return; // modal açık kalır, form gönderilmez
+                        }
+                    } catch (err) {
+                        console.error('Rehber çakışma kontrolü yapılamadı, kayıt yine de deneniyor:', err);
+                        // Ağ/istek hatasında engellemiyoruz; sunucu tarafı /add-tour
+                        // içinde zaten aynı kontrolü son bir güvenlik katmanı olarak yapıyor.
+                    }
+                }
+
+                // Çakışma yoksa (ya da kontrol edilemediyse) formu native şekilde gönder
+                HTMLFormElement.prototype.submit.call(newTourForm);
             });
         });
     </script>

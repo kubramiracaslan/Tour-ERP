@@ -1,4 +1,3 @@
-// controllers/tourController.js
 const TourModel = require('../models/tourModel');
 const ExcelJS = require('exceljs');
 const Mailer = require('../utils/mailer');
@@ -83,6 +82,7 @@ exports.getDashboard = async (req, res) => {
             operations, agencies, guides, cities,
             selectedYear: selectedYear || '',
             selectedMonth: selectedMonth || '',
+            guideConflict: req.query.guideConflict || null,
             page_path: '/'
         });
     } catch (error) {
@@ -133,6 +133,23 @@ exports.getCalendarView = async (req, res) => {
     }
 };
 
+// AJAX: "Yeni Tur Oluştur" modalı form gönderilmeden önce rehber çakışmasını
+// kontrol eder. Modal açık kalsın, alanlar kaybolmasın diye sayfa yenilemeden
+// buradan kontrol ediliyor.
+exports.checkGuideConflict = async (req, res) => {
+    try {
+        const { guide_id, start_date, end_date, exclude_tour_id } = req.query;
+        if (!guide_id || !start_date || !end_date) {
+            return res.json({ conflict: false });
+        }
+        const result = await TourModel.checkGuideConflictForApi(guide_id, start_date, end_date, exclude_tour_id || null);
+        res.json(result);
+    } catch (error) {
+        console.error('Rehber çakışma kontrolü hatası:', error);
+        res.status(500).json({ conflict: false });
+    }
+};
+
 exports.addTour = async (req, res) => {
     try {
         const {
@@ -152,6 +169,9 @@ exports.addTour = async (req, res) => {
 
         res.redirect(`/?year=${year}&month=${month}`);
     } catch (error) {
+        if (error.code === 'GUIDE_CONFLICT') {
+            return res.redirect(`/?guideConflict=${encodeURIComponent(error.message)}`);
+        }
         console.error('Tur kaydedilirken hata:', error);
         res.status(500).send('Tur kaydedilirken bir hata oluştu.');
     }
@@ -180,6 +200,7 @@ exports.getTourOperation = async (req, res) => {
             allCities,
             generalGuides,
             localGuides,
+            guideConflict: req.query.guideConflict || null,
             page_path: `/tour-operation/${tourId}`
         });
     } catch (error) {
@@ -255,6 +276,9 @@ exports.addCityToTour = async (req, res) => {
         await TourModel.addCityToTour(tourId, city_id, general_guide_id, local_guide_id);
         res.redirect(`/tour-operation/${tourId}`);
     } catch (error) {
+        if (error.code === 'GUIDE_CONFLICT') {
+            return res.redirect(`/tour-operation/${req.params.id}?guideConflict=${encodeURIComponent(error.message)}`);
+        }
         console.error('Şehir ekleme hatası:', error);
         res.status(500).send('Şehir ekleme işlemi başarısız oldu.');
     }
@@ -291,6 +315,10 @@ exports.updateCityOperation = async (req, res) => {
 
         res.redirect(`/tour-operation/${tourId}`);
     } catch (error) {
+        if (error.code === 'GUIDE_CONFLICT') {
+            const redirectTo = error.tourId ? `/tour-operation/${error.tourId}` : '/';
+            return res.redirect(`${redirectTo}?guideConflict=${encodeURIComponent(error.message)}`);
+        }
         console.error('Operasyon güncelleme hatası:', error);
         res.status(500).send('Operasyon güncellenirken bir hata oluştu: ' + error.message);
     }

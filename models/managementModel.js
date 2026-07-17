@@ -1,4 +1,3 @@
-// models/managementModel.js
 const db = require('../db');
 
 exports.getAllCountries = async () => {

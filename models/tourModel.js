@@ -1,5 +1,77 @@
-// models/tourModel.js
 const pool = require('../db');
+
+function fmtDate(d) {
+    return d ? new Date(d).toISOString().split('T')[0] : '';
+}
+
+// -------------------------------------------------------------------------
+// REHBER ÇAKIŞMA KONTROLÜ
+// Bir rehber, tarihleri çakışan başka bir turda (ana rehber, genel rehber
+// ya da yerel rehber rolünde) zaten görevliyse çakışma olarak sayılır.
+//
+// executor: pool ya da açık bir transaction connection'ı olabilir (conn.execute
+// de pool.execute ile aynı imzaya sahip olduğu için ikisi de kabul edilir).
+// excludeTourId: kontrolün yapıldığı turun kendisini hariç tutmak için (aynı
+// turun farklı şehirlerinde aynı rehberin olması çakışma sayılmaz).
+// -------------------------------------------------------------------------
+async function findGuideConflict(executor, guideId, startDate, endDate, excludeTourId) {
+    if (!guideId) return null;
+
+    const params = [endDate, startDate, guideId, guideId, guideId];
+    let query = `
+        SELECT DISTINCT t.id, t.tour_name, t.start_date, t.end_date
+        FROM tours t
+        WHERE t.start_date <= ? AND t.end_date >= ?
+          AND (
+              t.main_guide_id = ?
+              OR EXISTS (
+                  SELECT 1 FROM operation_management om
+                  WHERE om.tour_id = t.id
+                    AND (om.general_guide_id = ? OR om.local_guide_id = ?)
+              )
+          )
+    `;
+    if (excludeTourId) {
+        query += ' AND t.id != ?';
+        params.push(excludeTourId);
+    }
+    query += ' LIMIT 1';
+
+    const [rows] = await executor.execute(query, params);
+    return rows[0] || null;
+}
+exports.findGuideConflict = findGuideConflict;
+
+exports.getGuideNameById = async (id) => {
+    if (!id) return null;
+    const [rows] = await pool.execute('SELECT guide_name FROM guides WHERE id = ?', [id]);
+    return rows[0] ? rows[0].guide_name : null;
+};
+
+// Controller/API tarafından çağrılacak, JSON dönen basit sürüm (transaction gerektirmez)
+exports.checkGuideConflictForApi = async (guideId, startDate, endDate, excludeTourId) => {
+    const conflict = await findGuideConflict(pool, guideId, startDate, endDate, excludeTourId || null);
+    if (!conflict) return { conflict: false };
+
+    const guideName = await exports.getGuideNameById(guideId);
+    return {
+        conflict: true,
+        message: `${guideName || 'Seçilen rehber'}, "${conflict.tour_name}" turunda ` +
+            `(${fmtDate(conflict.start_date)} - ${fmtDate(conflict.end_date)}) zaten görevli olduğu için bu tarihlerde başka bir tura atanamaz.`
+    };
+};
+
+// Çakışma bulunduğunda fırlatılacak, controller'ın tanıyabileceği özel hata
+async function buildGuideConflictError(guideId, conflict, contextMessage) {
+    const guideName = await exports.getGuideNameById(guideId);
+    const err = new Error(
+        `${guideName || 'Seçilen rehber'}, "${conflict.tour_name}" turunda ` +
+        `(${fmtDate(conflict.start_date)} - ${fmtDate(conflict.end_date)}) zaten görevli olduğu için ${contextMessage}`
+    );
+    err.code = 'GUIDE_CONFLICT';
+    return err;
+}
+exports.buildGuideConflictError = buildGuideConflictError;
 
 // =========================================================================
 // Yardımcı: cities_json / restaurants_json içindeki JSON string'i parse et
@@ -143,6 +215,14 @@ exports.createTourWithCities = async (tourData, cityIds) => {
     try {
         await conn.beginTransaction();
 
+        // ÇAKIŞMA KONTROLÜ: ana rehber, bu tarihlerde başka bir turda görevli mi?
+        if (main_guide_id) {
+            const conflict = await findGuideConflict(conn, main_guide_id, start_date, end_date, null);
+            if (conflict) {
+                throw await buildGuideConflictError(main_guide_id, conflict, 'bu tarihlerde yeni bir tura atanamaz.');
+            }
+        }
+
         const [tourResult] = await conn.execute(
             `INSERT INTO tours (tour_name, start_date, end_date, year, month, agency_id, main_guide_id, transport_status, payment_received, payment_paid) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -235,6 +315,20 @@ exports.updateTourStatus = async (id, transport_status, payment_received, paymen
 };
 
 exports.addCityToTour = async (tourId, city_id, general_guide_id, local_guide_id) => {
+    // ÇAKIŞMA KONTROLÜ: bu tura eklenecek rehberler, tur tarihlerinde başka bir turda görevli mi?
+    const [tourRows] = await pool.execute('SELECT start_date, end_date FROM tours WHERE id = ?', [tourId]);
+    if (tourRows.length === 0) {
+        throw new Error('Tur bulunamadı.');
+    }
+    const { start_date, end_date } = tourRows[0];
+
+    for (const guideId of [general_guide_id, local_guide_id].filter(Boolean)) {
+        const conflict = await findGuideConflict(pool, guideId, start_date, end_date, tourId);
+        if (conflict) {
+            throw await buildGuideConflictError(guideId, conflict, 'bu tura atanamaz.');
+        }
+    }
+
     const query = `
         INSERT INTO operation_management 
         (tour_id, city_id, general_guide_id, general_guide_status, local_guide_id, local_guide_status, hotel_status) 
@@ -286,6 +380,26 @@ exports.updateCityOperationFull = async ({
         } else {
             finalLocalGuideId = (local_guide_id && local_guide_id.trim() !== '') ? local_guide_id : current.local_guide_id;
             finalLocalGuideStatus = local_guide_status !== undefined ? local_guide_status : current.local_guide_status;
+        }
+
+        // ÇAKIŞMA KONTROLÜ: değişen/atanan rehberler bu tarihlerde başka bir turda görevli mi?
+        // (Sadece gerçekten değişen rehberi kontrol ediyoruz, dokunulmayanı tekrar kontrol etmeye gerek yok.)
+        const guidesChanged = [];
+        if (finalGeneralGuideId && finalGeneralGuideId !== current.general_guide_id) guidesChanged.push(finalGeneralGuideId);
+        if (finalLocalGuideId && finalLocalGuideId !== current.local_guide_id) guidesChanged.push(finalLocalGuideId);
+
+        if (guidesChanged.length > 0) {
+            const [tourRows] = await conn.execute('SELECT start_date, end_date FROM tours WHERE id = ?', [current.tour_id]);
+            const tourDates = tourRows[0];
+
+            for (const guideId of guidesChanged) {
+                const conflict = await findGuideConflict(conn, guideId, tourDates.start_date, tourDates.end_date, current.tour_id);
+                if (conflict) {
+                    const err = await buildGuideConflictError(guideId, conflict, 'bu tarihlerde bu göreve atanamaz.');
+                    err.tourId = current.tour_id; // controller'ın doğru sayfaya geri yönlendirebilmesi için
+                    throw err;
+                }
+            }
         }
 
         await conn.execute(

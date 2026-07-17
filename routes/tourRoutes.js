@@ -26,7 +26,9 @@ router.post('/update-city-operation', tourController.updateCityOperation);
 // 3. AJAX/Fetch İçin Dinamik Veri Rotaları (Şehre göre otel/restoran getiren API)
 router.get('/api/cities/:cityId/hotels', tourController.getHotelsByCity);
 router.get('/api/cities/:cityId/restaurants', tourController.getRestaurantsByCity);
+
 router.get('/calendar', tourController.getCalendarView);
+router.get('/api/guide-conflict', tourController.checkGuideConflict);
 
 // 4. Hızlı Ekleme Modalları İçin API Rotaları (Sayfa yenilenmeden veritabanına yazan API)
 router.post('/api/quick-add/hotel', tourController.quickAddHotel);
