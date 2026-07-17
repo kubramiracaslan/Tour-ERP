@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tur Takvimi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background: linear-gradient(135deg, #10b981, #059669); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
+        #calendar { max-width: 1100px; margin: 0 auto; }
+        .fc-event { cursor: pointer; }
+        .fc-daygrid-event { white-space: normal !important; }
+
+        /* Liste görünümü (listMonth) okunabilirlik iyileştirmeleri */
+        .fc-list-day-cushion {
+            background-color: #f1f5f9 !important;
+            padding: 12px 16px !important;
+        }
+        .fc-list-day-text, .fc-list-day-side-text {
+            font-weight: 700 !important;
+            font-size: 1rem !important;
+            color: #0f172a !important;
+        }
+        .fc-list-event td {
+            padding: 12px 16px !important;
+            font-size: 0.95rem !important;
+        }
+        .fc-list-event-title a {
+            font-weight: 600 !important;
+        }
+        .fc-list-event-dot {
+            border-width: 7px !important;
+        }
+        .fc-list-table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .fc-list-table tbody tr:hover td {
+            background-color: #f8fafc !important;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark p-3 text-white shadow">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold fs-3"><i class="fa-solid fa-map-location-dot me-2"></i> Operasyon Takip Sistemi</span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav ms-4 gap-2">
+                    <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
+                    <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
+                    <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
+                    <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="card p-4 shadow-sm">
+            <h4 class="fw-bold mb-4 text-dark px-2"><i class="fa-solid fa-calendar-days me-2 text-success"></i> Tur Takvimi</h4>
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- Takvim verisi: JS kodunun içine gömmek yerine ayrı bir JSON bloğuna koyuyoruz.
+         Bu hem editörlerin (VS Code vb.) EJS etiketini JS sanıp yanlış hata vermesini
+         engeller, hem de veride "</script>" gibi karakterler olsa bile güvenlidir. -->
+    <script type="application/json" id="calendar-events-data"><%- JSON.stringify(events) %></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const calendarEl = document.getElementById('calendar');
+            const events = JSON.parse(document.getElementById('calendar-events-data').textContent);
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'tr',
+                firstDay: 1, // Hafta Pazartesi'den başlasın (0=Pazar, 1=Pazartesi)
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,listMonth'
+                },
+                buttonText: { today: 'Bugün', month: 'Takvim', list: 'Liste' },
+                allDayText: 'Tüm gün',
+                events: events,
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault();
+                    if (info.event.url) {
+                        window.location.href = info.event.url;
+                    }
+                },
+                height: 'auto',
+                dayMaxEvents: 3
+            });
+
+            calendar.render();
+        });
+    </script>
+</body>
+</html>

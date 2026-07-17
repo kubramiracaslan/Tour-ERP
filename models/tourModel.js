@@ -1,3 +1,4 @@
+// models/tourModel.js
 const pool = require('../db');
 
 // =========================================================================
@@ -115,6 +116,17 @@ exports.getGuidesOrderByName = async () => {
 
 exports.getCitiesOrderByName = async () => {
     const [rows] = await pool.execute('SELECT id, city_name FROM cities ORDER BY city_name ASC');
+    return rows;
+};
+
+// Takvim sayfası için hafif bir sorgu: sadece tarih, isim ve acente bilgisi
+exports.getAllToursForCalendar = async () => {
+    const [rows] = await pool.execute(`
+        SELECT t.id, t.tour_name, t.start_date, t.end_date, a.agency_name
+        FROM tours t
+        LEFT JOIN agencies a ON t.agency_id = a.id
+        ORDER BY t.start_date ASC
+    `);
     return rows;
 };
 

@@ -91,6 +91,48 @@ exports.getDashboard = async (req, res) => {
     }
 };
 
+// =========================================================================
+// TAKVİM GÖRÜNÜMÜ
+// =========================================================================
+
+// Turları birbirinden ayırt etmek için dönen bir renk paleti
+const CALENDAR_COLOR_PALETTE = [
+    '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed',
+    '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5',
+    '#0d9488', '#c026d3'
+];
+
+exports.getCalendarView = async (req, res) => {
+    try {
+        const tours = await TourModel.getAllToursForCalendar();
+
+        // FullCalendar'da "end" tarihi hariç (exclusive) sayılır, yani turun
+        // bitiş gününü de takvimde göstermek için end_date'e 1 gün ekliyoruz.
+        const events = tours.map((t, index) => {
+            const start = t.start_date ? new Date(t.start_date) : null;
+            const end = t.end_date ? new Date(t.end_date) : null;
+            const exclusiveEnd = end ? new Date(end.getTime() + 24 * 60 * 60 * 1000) : null;
+            const color = CALENDAR_COLOR_PALETTE[index % CALENDAR_COLOR_PALETTE.length];
+
+            return {
+                id: t.id,
+                title: t.tour_name + (t.agency_name ? ` — ${t.agency_name}` : ''),
+                start: start ? start.toISOString().split('T')[0] : null,
+                end: exclusiveEnd ? exclusiveEnd.toISOString().split('T')[0] : null,
+                url: `/tour-operation/${t.id}`,
+                backgroundColor: color,
+                borderColor: color,
+                textColor: '#ffffff'
+            };
+        });
+
+        res.render('calendar', { events, page_path: '/calendar' });
+    } catch (error) {
+        console.error('Takvim sayfası yüklenirken hata:', error);
+        res.status(500).send('Takvim sayfası yüklenirken bir hata oluştu.');
+    }
+};
+
 exports.addTour = async (req, res) => {
     try {
         const {
