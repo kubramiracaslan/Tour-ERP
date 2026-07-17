@@ -29,10 +29,10 @@ exports.insertAgency = async ({ agency_name, phone, email }) => {
     return result.insertId;
 };
 
-exports.insertGuide = async ({ guide_name, phone, guide_type }) => {
+exports.insertGuide = async ({ guide_name, phone, email, guide_type }) => {
     const [result] = await db.execute(
-        'INSERT INTO guides (guide_name, phone, guide_type) VALUES (?, ?, ?)',
-        [guide_name, phone, guide_type]
+        'INSERT INTO guides (guide_name, phone, email, guide_type) VALUES (?, ?, ?, ?)',
+        [guide_name, phone, email || null, guide_type]
     );
     return result.insertId;
 };

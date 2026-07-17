@@ -5,19 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OperationManagement - Definitions</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
+    </style>
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-dark mb-5 shadow-sm" style="background-color: #10b981 !important;">
-    <div class="container d-flex justify-content-between align-items-center">
-        <span class="navbar-brand fw-bold fs-4 mb-0">🌐 OperationManagement</span>
-        <a href="/calendar" class="btn btn-light btn-sm fw-bold"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
-    </div>
-</nav>
+    <nav class="navbar navbar-expand-lg navbar-dark p-3 text-white shadow" style="background: linear-gradient(135deg, #10b981, #059669);">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold fs-3"><i class="fa-solid fa-map-location-dot me-2"></i> Operasyon Takip Sistemi</span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav ms-4 gap-2">
+                    <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
+                    <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
+                    <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
+                    <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                </div>
+            </div>
+        </div>
+    </nav>
 
     <div class="container mb-5">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger fw-semibold">
+                <% if (error === 'invalid_country_name') { %> Lütfen geçerli bir ülke adı giriniz.
+                <% } else if (error === 'invalid_city') { %> Lütfen geçerli bir şehir adı ve ülke seçiniz.
+                <% } else if (error === 'invalid_guide_name') { %> Lütfen geçerli bir rehber adı giriniz.
+                <% } else { %> Girdiğiniz bilgilerde bir sorun var, lütfen kontrol edin.
+                <% } %>
+            </div>
+        <% } %>
         <div class="row g-4">
-            
+
             <div class="col-md-6">
                 <div class="card shadow-sm">
                     <div class="card-header bg-dark text-white fw-bold py-3">📍 Add New Country</div>
@@ -62,13 +82,18 @@
                     <div class="card-header bg-dark text-white fw-bold py-3">🏢 Add New Agency</div>
                     <div class="card-body p-4">
                         <form action="/add-agency" method="POST">
+                            <input type="hidden" name="redirect_to" value="/management">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Agency Name</label>
                                 <input type="text" name="agency_name" class="form-control" placeholder="e.g. Global Travel LLC" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Contact Info</label>
-                                <input type="text" name="contact_info" class="form-control" placeholder="Phone or Email">
+                                <label class="form-label fw-semibold">Phone Number</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="e.g. +90 532 XXX XX XX">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Email Address</label>
+                                <input type="email" name="email" class="form-control" placeholder="e.g. info@agency.com">
                             </div>
                             <button type="submit" class="btn btn-info text-white w-100 py-2">Save Agency</button>
                         </form>
@@ -88,6 +113,10 @@
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Phone Number</label>
                                 <input type="text" name="phone" class="form-control" placeholder="e.g. +90...">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Email Address</label>
+                                <input type="email" name="email" class="form-control" placeholder="e.g. guide@example.com">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Guide Type</label>

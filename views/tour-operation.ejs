@@ -11,6 +11,7 @@
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .navbar { background: linear-gradient(135deg, #1e293b, #0f172a); }
+        .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .status-badge { padding: 4px 10px; border-radius: 30px; font-weight: 600; font-size: 0.75rem; display: inline-block; text-align: center; }
         .status-DONE { background-color: #d1fae5; color: #065f46; }
@@ -21,10 +22,17 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark p-3 text-white shadow">
+    <nav class="navbar navbar-expand-lg navbar-dark p-3 text-white shadow" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
         <div class="container-fluid">
-            <a href="/" class="btn btn-outline-light fw-bold"><i class="fa-solid fa-arrow-left me-1"></i> Kokpite Geri Dön</a>
-            <span class="navbar-brand fw-bold fs-4 mx-auto"><i class="fa-solid fa-sliders me-2 text-success"></i> İç Operasyon Yönetim Merkezi</span>
+            <span class="navbar-brand fw-bold fs-3"><i class="fa-solid fa-map-location-dot me-2"></i> Operasyon Takip Sistemi</span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav ms-4 gap-2">
+                    <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
+                    <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
+                    <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
+                    <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                </div>
+            </div>
         </div>
     </nav>
 

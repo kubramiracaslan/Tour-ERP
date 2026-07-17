@@ -48,11 +48,13 @@ exports.addCity = async (req, res) => {
 // POST: Save Agency
 exports.addAgency = async (req, res) => {
     try {
-        // Not: Form alan isimlerini standartlaştırdık -> her yerde snake_case (agency_name)
-        const { agency_name, phone, email } = req.body;
+        // redirect_to: formun hangi sayfadan gönderildiğini belirtiyor
+        // Yoksa (eski bir form/istek gelirse) güvenli varsayılan olarak tour-demands'e dönüyor
+        const { agency_name, phone, email, redirect_to } = req.body;
+        const returnTo = redirect_to || '/tour-demands';
 
         if (!agency_name || agency_name.trim() === '') {
-            return res.redirect('/tour-demands?error=invalid_agency_name');
+            return res.redirect(`${returnTo}?error=invalid_agency_name`);
         }
 
         await ManagementModel.insertAgency({
@@ -61,7 +63,7 @@ exports.addAgency = async (req, res) => {
             email: email ? email.trim() : null
         });
 
-        res.redirect('/tour-demands');
+        res.redirect(returnTo);
     } catch (error) {
         console.error('Acente kaydetme hatası:', error);
         res.status(500).send('Acente kaydedilirken bir hata oluştu.');
@@ -71,11 +73,16 @@ exports.addAgency = async (req, res) => {
 // POST: Save Guide
 exports.addGuide = async (req, res) => {
     try {
-        const { guide_name, phone, guide_type } = req.body;
+        const { guide_name, phone, email, guide_type } = req.body;
         if (!guide_name || guide_name.trim() === '') {
             return res.redirect('/management?error=invalid_guide_name');
         }
-        await ManagementModel.insertGuide({ guide_name: guide_name.trim(), phone, guide_type });
+        await ManagementModel.insertGuide({
+            guide_name: guide_name.trim(),
+            phone: phone ? phone.trim() : null,
+            email: email ? email.trim() : null,
+            guide_type
+        });
         res.redirect('/management');
     } catch (error) {
         console.error('Rehber kaydetme hatası:', error);
