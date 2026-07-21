@@ -102,14 +102,14 @@ exports.getAgenciesOrderByName = async () => {
 };
 
 exports.insertDemand = async (demandData) => {
-    const { demand_name, agency_id, first_contact_date, offer_date, offered_price, currency } = demandData;
+    const { demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency } = demandData;
     const query = `
-        INSERT INTO tour_demands (demand_name, agency_id, first_contact_date, offer_date, offered_price, currency, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+        INSERT INTO tour_demands (demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
     `;
     return pool.execute(query, [
-        demand_name, agency_id || null, first_contact_date || null,
-        offer_date || null, offered_price || null, currency || 'EUR'
+        demand_name, start_date || null, end_date || null, agency_id || null,
+        first_contact_date || null, offer_date || null, offered_price || null, currency || 'EUR'
     ]);
 };
 
@@ -117,6 +117,57 @@ exports.updateDemandStatus = async (id, status, rejection_reason) => {
     return pool.execute('UPDATE tour_demands SET status = ?, rejection_reason = ? WHERE id = ?', [
         status, status === 'REJECTED' ? rejection_reason : null, id
     ]);
+};
+
+// Talep ONAYLANDIĞINDA çağrılır. Eğer bu talep daha önce bir tura
+// bağlanmadıysa (tour_id NULL), tours tablosunda otomatik bir tur oluşturur
+// ve talebi o tura bağlar. Diğer alanlar (rehber, ulaşım, ödeme durumları)
+// "Tamamlanmadı/atanmadı" olarak başlar, kullanıcı sonradan operasyon
+// ekranından doldurur.
+exports.approveDemandAndCreateTour = async (demandId) => {
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [demandRows] = await conn.execute('SELECT * FROM tour_demands WHERE id = ? FOR UPDATE', [demandId]);
+        if (demandRows.length === 0) {
+            throw new Error('Talep bulunamadı.');
+        }
+        const demand = demandRows[0];
+
+        let tourId = demand.tour_id;
+
+        // Daha önce bir tura bağlanmamışsa yeni tur oluştur
+        if (!tourId) {
+            if (!demand.start_date || !demand.end_date) {
+                throw new Error('Bu talebe tur tarihleri girilmediği için otomatik tur oluşturulamıyor. Lütfen önce talebe başlangıç/bitiş tarihi ekleyin.');
+            }
+
+            const startDate = new Date(demand.start_date);
+            const year = startDate.getFullYear();
+            const month = startDate.getMonth() + 1;
+
+            const [tourResult] = await conn.execute(
+                `INSERT INTO tours (tour_name, start_date, end_date, year, month, agency_id, transport_status, payment_received, payment_paid)
+                 VALUES (?, ?, ?, ?, ?, ?, 'PENDING', 'PENDING', 'PENDING')`,
+                [demand.demand_name, demand.start_date, demand.end_date, year, month, demand.agency_id || null]
+            );
+            tourId = tourResult.insertId;
+        }
+
+        await conn.execute(
+            'UPDATE tour_demands SET status = ?, rejection_reason = NULL, tour_id = ? WHERE id = ?',
+            ['APPROVED', tourId, demandId]
+        );
+
+        await conn.commit();
+        return tourId;
+    } catch (error) {
+        await conn.rollback();
+        throw error;
+    } finally {
+        conn.release();
+    }
 };
 
 // Mail/WhatsApp bildirimi göndermek için acente iletişim bilgileriyle birlikte tek talep çeker
@@ -199,6 +250,28 @@ exports.getAllToursForCalendar = async () => {
         LEFT JOIN agencies a ON t.agency_id = a.id
         ORDER BY t.start_date ASC
     `);
+    return rows;
+};
+
+// Excel export için tur listesi (dashboard ve takvim sayfası ortak kullanır)
+// year/month verilirse dashboard'daki filtreye göre daraltılır, verilmezse tüm turlar döner.
+exports.getToursForExport = async (year, month) => {
+    let query = `
+        SELECT t.tour_name, t.start_date, t.end_date, a.agency_name, g.guide_name,
+               t.transport_status, t.payment_received, t.payment_paid,
+               (SELECT COUNT(om.id) FROM operation_management om WHERE om.tour_id = t.id) as city_count
+        FROM tours t
+        LEFT JOIN agencies a ON t.agency_id = a.id
+        LEFT JOIN guides g ON t.main_guide_id = g.id
+    `;
+    const params = [];
+    if (year && month) {
+        query += ' WHERE t.year = ? AND t.month = ? ';
+        params.push(year, month);
+    }
+    query += ' ORDER BY t.start_date ASC';
+
+    const [rows] = await pool.execute(query, params);
     return rows;
 };
 

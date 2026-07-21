@@ -55,13 +55,22 @@
                     <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
                     <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
                 </div>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
+                    <form action="/logout" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-light fw-bold"><i class="fa-solid fa-right-from-bracket me-1"></i> Çıkış</button>
+                    </form>
+                </div>
             </div>
         </div>
     </nav>
 
     <div class="container my-4">
         <div class="card p-4 shadow-sm">
-            <h4 class="fw-bold mb-4 text-dark px-2"><i class="fa-solid fa-calendar-days me-2 text-success"></i> Tur Takvimi</h4>
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h4 class="fw-bold text-dark px-2 m-0"><i class="fa-solid fa-calendar-days me-2 text-success"></i> Tur Takvimi</h4>
+                <a href="/export-tours-excel" class="btn btn-success fw-bold px-3 py-2 shadow-sm"><i class="fa-solid fa-file-excel me-1"></i> Excel'e Aktar</a>
+            </div>
             <div id="calendar"></div>
         </div>
     </div>
@@ -85,7 +94,7 @@
                     center: 'title',
                     right: 'dayGridMonth,listMonth'
                 },
-                buttonText: { today: 'Bugün', month: 'Takvim', list: 'Liste' },
+                buttonText: { today: 'Bugün', month: 'Ay', list: 'Liste' },
                 allDayText: 'Tüm gün',
                 events: events,
                 eventClick: function (info) {

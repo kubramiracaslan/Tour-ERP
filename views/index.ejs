@@ -34,7 +34,14 @@
                 <div class="navbar-nav ms-4 gap-2">
                     <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
                     <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
+                    <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
                     <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                </div>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
+                    <form action="/logout" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-light fw-bold"><i class="fa-solid fa-right-from-bracket me-1"></i> Çıkış</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -64,12 +71,13 @@
                         <% months.forEach((m, index) => { %> <option value="<%= index + 1 %>" <%= (selectedMonth && Number(selectedMonth) === (index + 1)) ? 'selected' : '' %>><%= m %></option> <% }) %>
                     </select>
                 </div>
-                <div class="col-md-3 d-flex gap-2">
+                <div class="col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-success w-100 fw-bold py-2"><i class="fa-solid fa-filter me-1"></i> Filtrele</button>
                     <% if (selectedYear || selectedMonth) { %> <a href="/" class="btn btn-secondary fw-bold py-2"><i class="fa-solid fa-filter-circle-xmark"></i></a> <% } %>
                 </div>
-                <div class="col-md-3 text-end">
-                    <button type="button" class="btn btn-dark fw-bold py-2 px-4 w-100" data-bs-toggle="modal" data-bs-target="#newTourModal"><i class="fa-solid fa-folder-plus me-1"></i> Yeni Tur Oluştur</button>
+                <div class="col-md-4 d-flex gap-2">
+                    <a href="/export-tours-excel?year=<%= selectedYear %>&month=<%= selectedMonth %>" class="btn btn-outline-success fw-bold py-2 flex-fill"><i class="fa-solid fa-file-excel me-1"></i> Excel'e Aktar</a>
+                    <button type="button" class="btn btn-dark fw-bold py-2 flex-fill" data-bs-toggle="modal" data-bs-target="#newTourModal"><i class="fa-solid fa-folder-plus me-1"></i> Yeni Tur Oluştur</button>
                 </div>
             </form>
         </div>
@@ -285,7 +293,6 @@
                     } catch (err) {
                         console.error('Rehber çakışma kontrolü yapılamadı, kayıt yine de deneniyor:', err);
                         // Ağ/istek hatasında engellemiyoruz; sunucu tarafı /add-tour
-                        // içinde zaten aynı kontrolü son bir güvenlik katmanı olarak yapıyor.
                     }
                 }
 

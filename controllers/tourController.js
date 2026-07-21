@@ -12,7 +12,7 @@ exports.getTourDemands = async (req, res) => {
             TourModel.getAllDemands(),
             TourModel.getAgenciesOrderByName()
         ]);
-        res.render('tour-demands', { demands, agencies, page_path: '/tour-demands' });
+        res.render('tour-demands', { demands, agencies, error: req.query.error || null, page_path: '/tour-demands' });
     } catch (error) {
         console.error('Talep Takip Sayfası Yüklenirken Hata:', error);
         res.status(500).send('Talep takip sayfası yüklenirken bir hata oluştu.');
@@ -21,8 +21,8 @@ exports.getTourDemands = async (req, res) => {
 
 exports.addDemand = async (req, res) => {
     try {
-        const { demand_name, agency_id, first_contact_date, offer_date, offered_price, currency } = req.body;
-        await TourModel.insertDemand({ demand_name, agency_id, first_contact_date, offer_date, offered_price, currency });
+        const { demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency } = req.body;
+        await TourModel.insertDemand({ demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency });
         res.redirect('/tour-demands');
     } catch (error) {
         console.error('Talep kaydedilirken hata:', error);
@@ -34,11 +34,15 @@ exports.updateDemandStatus = async (req, res) => {
     try {
         const demandId = req.params.id;
         const { status, rejection_reason } = req.body;
-        await TourModel.updateDemandStatus(demandId, status, rejection_reason);
+
+        if (status === 'APPROVED') {
+            // Onaylanınca otomatik tur oluşturulur (daha önce oluşmadıysa) ve talep o tura bağlanır.
+            await TourModel.approveDemandAndCreateTour(demandId);
+        } else {
+            await TourModel.updateDemandStatus(demandId, status, rejection_reason);
+        }
 
         if (status === 'IN_PROGRESS') {
-            // Bildirim gönderimi başarısız olsa bile durum güncellemesi zaten kaydedildi.
-            // Kullanıcı akışını mail/whatsapp hatasıyla bozmamak için ayrı try/catch içinde tutuyoruz.
             try {
                 const demand = await TourModel.getDemandWithAgencyById(demandId);
                 if (demand) {
@@ -53,7 +57,7 @@ exports.updateDemandStatus = async (req, res) => {
         res.redirect('/tour-demands');
     } catch (error) {
         console.error('Talep güncellenirken hata:', error);
-        res.status(500).send('Talep güncellenirken bir hata oluştu.');
+        res.redirect(`/tour-demands?error=${encodeURIComponent(error.message)}`);
     }
 };
 
@@ -101,6 +105,57 @@ const CALENDAR_COLOR_PALETTE = [
     '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5',
     '#0d9488', '#c026d3'
 ];
+
+// Tur listesini Excel'e aktarır. Dashboard'dan year/month ile (o anki filtreye
+// göre), takvim sayfasından ise filtresiz (tüm turlar) çağrılır.
+exports.exportToursExcel = async (req, res) => {
+    try {
+        const { year, month } = req.query;
+        const tours = await TourModel.getToursForExport(year || null, month || null);
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Tur Listesi');
+
+        worksheet.columns = [
+            { header: 'Tur Adı', key: 'tour_name', width: 30 },
+            { header: 'Başlangıç Tarihi', key: 'start_date', width: 16 },
+            { header: 'Bitiş Tarihi', key: 'end_date', width: 16 },
+            { header: 'Acente', key: 'agency_name', width: 25 },
+            { header: 'Ana Rehber', key: 'guide_name', width: 22 },
+            { header: 'Şehir Sayısı', key: 'city_count', width: 12 },
+            { header: 'Ulaşım Durumu', key: 'transport_status', width: 16 },
+            { header: 'Gelen Ödeme', key: 'payment_received', width: 16 },
+            { header: 'Giden Ödeme', key: 'payment_paid', width: 16 }
+        ];
+
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '059669' } };
+
+        tours.forEach(t => {
+            worksheet.addRow({
+                tour_name: t.tour_name,
+                start_date: t.start_date ? t.start_date.toISOString().split('T')[0] : '-',
+                end_date: t.end_date ? t.end_date.toISOString().split('T')[0] : '-',
+                agency_name: t.agency_name || 'Bilinmiyor',
+                guide_name: t.guide_name || 'Atanmadı',
+                city_count: t.city_count,
+                transport_status: t.transport_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı',
+                payment_received: t.payment_received === 'DONE' ? 'Alındı' : 'Tamamlanmadı',
+                payment_paid: t.payment_paid === 'DONE' ? 'Ödendi' : 'Tamamlanmadı'
+            });
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=Tur_Listesi_' + new Date().toISOString().split('T')[0] + '.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error('Tur listesi Excel raporu üretilirken hata:', error);
+        res.status(500).send('Excel raporu üretilirken bir hata oluştu.');
+    }
+};
 
 exports.getCalendarView = async (req, res) => {
     try {

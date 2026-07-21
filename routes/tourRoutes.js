@@ -34,6 +34,9 @@ router.get('/api/guide-conflict', tourController.checkGuideConflict);
 router.post('/api/quick-add/hotel', tourController.quickAddHotel);
 router.post('/api/quick-add/restaurant', tourController.quickAddRestaurant);
 
+//Excel aktarımı için 
+router.get('/export-tours-excel', tourController.exportToursExcel);
+
 module.exports = router;
 
 // app.js'in bu dosyayı tanıyabilmesi için dışarı aktarılıyor

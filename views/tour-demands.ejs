@@ -31,15 +31,29 @@
                 <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>">
                     <i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)
                 </a>
+                <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>">
+                    <i class="fa-solid fa-calendar-days me-1"></i> Takvim
+                </a>
                 <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>">
                     <i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar
                 </a>
+            </div>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
+                <form action="/logout" method="POST" class="m-0">
+                    <button type="submit" class="btn btn-sm btn-outline-light fw-bold"><i class="fa-solid fa-right-from-bracket me-1"></i> Çıkış</button>
+                </form>
             </div>
             </div>
         </div>
     </nav>
 
     <div class="container-fluid my-4 px-4">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger fw-semibold shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+            </div>
+        <% } %>
         <div class="row">
 
             <div class="col-xl-3 col-lg-4 mb-4">
@@ -55,6 +69,19 @@
                         <div class="col-12">
                             <label class="form-label fw-bold small">Talep Edilen Tur / Organizasyon</label>
                             <input type="text" name="demand_name" class="form-control py-2" placeholder="Örn: Balkan Turu" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">Tur Başlangıç Tarihi</label>
+                            <input type="date" name="start_date" class="form-control py-2">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">Tur Bitiş Tarihi</label>
+                            <input type="date" name="end_date" class="form-control py-2">
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted fst-italic">
+                                <i class="fa-solid fa-circle-info me-1"></i>Bu tarihler, talep onaylandığında otomatik oluşacak turun tarihleri olarak kullanılır.
+                            </small>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold small">Talebi Getiren Acente</label>
@@ -111,6 +138,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Tur / Talep Adı</th>
+                                    <th>Tur Tarihleri</th>
                                     <th>Acente</th>
                                     <th>İlk Görüşme</th>
                                     <th>Teklif Tarihi</th>
@@ -122,6 +150,9 @@
                                 <tr class="table-white">
                                     <th class="p-1">
                                         <input type="text" id="filter-demand-name" class="form-control form-control-sm" placeholder="Ara...">
+                                    </th>
+                                    <th class="p-1">
+                                        <input type="date" id="filter-tour-date" class="form-control form-control-sm" title="Bu tarihte devam eden turları göster">
                                     </th>
                                     <th class="p-1">
                                         <select id="filter-agency" class="form-select form-select-sm">
@@ -162,7 +193,7 @@
                             <tbody>
                                 <% if(demands.length === 0) { %>
                                     <tr>
-                                        <td colspan="7" class="text-center py-5 text-muted fw-semibold">Henüz sisteme işlenmiş bir acente talebi bulunmuyor.</td>
+                                        <td colspan="8" class="text-center py-5 text-muted fw-semibold">Henüz sisteme işlenmiş bir acente talebi bulunmuyor.</td>
                                     </tr>
                                 <% } %>
                                 <% demands.forEach(d => { %>
@@ -171,9 +202,19 @@
                                         data-agency-name="<%= d.agency_name || '' %>"
                                         data-first-contact="<%= d.first_contact_date ? d.first_contact_date.toISOString().split('T')[0] : '' %>"
                                         data-offer-date="<%= d.offer_date ? d.offer_date.toISOString().split('T')[0] : '' %>"
+                                        data-tour-start="<%= d.start_date ? d.start_date.toISOString().split('T')[0] : '' %>"
+                                        data-tour-end="<%= d.end_date ? d.end_date.toISOString().split('T')[0] : '' %>"
                                         data-price="<%= Number(d.offered_price || 0) %>"
                                         data-status="<%= d.status %>">
-                                        <td class="text-primary fs-5"><%= d.demand_name %></td>
+                                        <td class="text-primary fs-5">
+                                            <%= d.demand_name %>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <%= d.start_date ? d.start_date.toISOString().split('T')[0] : '-' %> /
+                                                <%= d.end_date ? d.end_date.toISOString().split('T')[0] : '-' %>
+                                            </small>
+                                        </td>
                                         <td>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="text-dark">
@@ -194,7 +235,7 @@
                                         </td>
                                         <td><small class="text-muted"><%= d.first_contact_date ? d.first_contact_date.toISOString().split('T')[0] : '-' %></small></td>
                                         <td><small class="text-muted"><%= d.offer_date ? d.offer_date.toISOString().split('T')[0] : '-' %></small></td>
-                                        <td class="text-dark">
+                                        <td class="text-dark text-center">
                                             <% if(d.currency === 'USD') { %> $ <% } else if(d.currency === 'TRY') { %> ₺ <% } else { %> € <% } %><%= Number(d.offered_price || 0).toLocaleString() %>
                                         </td>
                                         <td>
@@ -204,6 +245,11 @@
                                                 <% if(d.status === 'APPROVED') { %> Onaylandı (Tura Dönüştü) <% } %>
                                                 <% if(d.status === 'REJECTED') { %> Reddedildi <% } %>
                                             </span>
+                                            <% if (d.tour_id) { %>
+                                                <a href="/tour-operation/<%= d.tour_id %>" class="btn btn-sm btn-outline-success fw-bold d-block mt-2" title="Bu talepten oluşan tura git">
+                                                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Tura Git
+                                                </a>
+                                            <% } %>
                                             <% if(d.status === 'REJECTED' && d.rejection_reason) { %>
                                                 <small class="d-block text-danger mt-1 small fw-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> Gerekçe: <%= d.rejection_reason %></small>
                                             <% } %>
@@ -311,6 +357,7 @@
             const agencySelect = document.getElementById('filter-agency');
             const firstContactInput = document.getElementById('filter-first-contact');
             const offerDateInput = document.getElementById('filter-offer-date');
+            const tourDateInput = document.getElementById('filter-tour-date');
             const priceMinInput = document.getElementById('filter-price-min');
             const priceMaxInput = document.getElementById('filter-price-max');
             const statusSelect = document.getElementById('filter-status');
@@ -325,6 +372,7 @@
                 const agencyQuery = agencySelect.value;
                 const firstContactQuery = firstContactInput.value; // YYYY-MM-DD
                 const offerDateQuery = offerDateInput.value; // YYYY-MM-DD
+                const tourDateQuery = tourDateInput.value; // YYYY-MM-DD
                 const priceMin = priceMinInput.value !== '' ? Number(priceMinInput.value) : null;
                 const priceMax = priceMaxInput.value !== '' ? Number(priceMaxInput.value) : null;
                 const statusQuery = statusSelect.value;
@@ -334,17 +382,21 @@
 
                 rows.forEach(row => {
                     const rowPrice = Number(row.getAttribute('data-price') || 0);
+                    const tourStart = row.getAttribute('data-tour-start');
+                    const tourEnd = row.getAttribute('data-tour-end');
 
                     const matchesName = !nameQuery || row.getAttribute('data-demand-name').includes(nameQuery);
                     const matchesAgency = !agencyQuery || row.getAttribute('data-agency-name') === agencyQuery;
                     const matchesFirstContact = !firstContactQuery || row.getAttribute('data-first-contact') === firstContactQuery;
                     const matchesOfferDate = !offerDateQuery || row.getAttribute('data-offer-date') === offerDateQuery;
+                    // Girilen tarih, turun başlangıç-bitiş aralığına düşüyorsa eşleşir
+                    const matchesTourDate = !tourDateQuery || (tourStart && tourEnd && tourStart <= tourDateQuery && tourDateQuery <= tourEnd);
                     const matchesPriceMin = priceMin === null || rowPrice >= priceMin;
                     const matchesPriceMax = priceMax === null || rowPrice <= priceMax;
                     const matchesStatus = !statusQuery || row.getAttribute('data-status') === statusQuery;
 
                     const isVisible = matchesName && matchesAgency && matchesFirstContact
-                        && matchesOfferDate && matchesPriceMin && matchesPriceMax && matchesStatus;
+                        && matchesOfferDate && matchesTourDate && matchesPriceMin && matchesPriceMax && matchesStatus;
 
                     row.style.display = isVisible ? '' : 'none';
                     if (isVisible) visibleCount++;
@@ -356,7 +408,7 @@
                     if (!emptyRow) {
                         emptyRow = document.createElement('tr');
                         emptyRow.id = 'filter-empty-row';
-                        emptyRow.innerHTML = '<td colspan="7" class="text-center py-4 text-muted fw-semibold">Filtreyle eşleşen talep bulunamadı.</td>';
+                        emptyRow.innerHTML = '<td colspan="8" class="text-center py-4 text-muted fw-semibold">Filtreyle eşleşen talep bulunamadı.</td>';
                         tableBody.appendChild(emptyRow);
                     }
                 } else if (emptyRow) {
@@ -365,13 +417,14 @@
             }
 
             [nameInput, priceMinInput, priceMaxInput].forEach(el => el.addEventListener('input', applyFilters));
-            [agencySelect, firstContactInput, offerDateInput, statusSelect].forEach(el => el.addEventListener('change', applyFilters));
+            [agencySelect, firstContactInput, offerDateInput, tourDateInput, statusSelect].forEach(el => el.addEventListener('change', applyFilters));
 
             clearBtn.addEventListener('click', () => {
                 nameInput.value = '';
                 agencySelect.value = '';
                 firstContactInput.value = '';
                 offerDateInput.value = '';
+                tourDateInput.value = '';
                 priceMinInput.value = '';
                 priceMaxInput.value = '';
                 statusSelect.value = '';
