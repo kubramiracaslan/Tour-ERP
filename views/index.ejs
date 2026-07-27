@@ -36,6 +36,9 @@
                     <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
                     <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
                     <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                    <% if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') { %>
+                        <a href="/users" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/users') ? 'active' : '' %>"><i class="fa-solid fa-user-gear me-1"></i> Kullanıcılar</a>
+                    <% } %>
                 </div>
                 <div class="ms-auto d-flex align-items-center gap-2">
                     <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
@@ -97,7 +100,14 @@
                         <% } %>
                         <% operations.forEach(op => { %>
                             <tr class="fw-semibold">
-                                <td class="text-primary tour-name-field"><%= op.operation_name %></td>
+                                <td class="text-primary tour-name-field">
+                                    <%= op.operation_name %>
+                                    <% if (op.covered_countries) { %>
+                                        <small class="d-block text-muted fw-normal" style="font-size: 0.75rem;">
+                                            <i class="fa-solid fa-earth-europe me-1"></i><%= op.covered_countries %>
+                                        </small>
+                                    <% } %>
+                                </td>
                                 <td class="date-field">
                                     <span class="badge bg-secondary p-2 fw-semibold">
                                         <i class="fa-regular fa-calendar me-1"></i>
@@ -223,7 +233,20 @@
                             <div class="col-md-12">
                                 <label class="form-label fw-bold text-success"><i class="fa-solid fa-city me-1"></i> Tur Rotaları / Şehirler (Çoklu Seçim)</label>
                                 <select name="city_ids[]" class="form-select select2-cities" multiple="multiple" style="width: 100%;">
-                                    <% if (typeof cities !== 'undefined') { %> <% cities.forEach(c => { %> <option value="<%= c.id %>">🏙️ <%= c.city_name %></option> <% }) %> <% } %>
+                                    <%
+                                        let currentCountryGroup = null;
+                                        if (typeof cities !== 'undefined') {
+                                            cities.forEach(c => {
+                                                if (c.country_name !== currentCountryGroup) {
+                                                    if (currentCountryGroup !== null) { %></optgroup><% }
+                                                    currentCountryGroup = c.country_name;
+                                    %><optgroup label="<%= currentCountryGroup %>"><%
+                                                }
+                                    %><option value="<%= c.id %>">🏙️ <%= c.city_name %></option><%
+                                            });
+                                            if (currentCountryGroup !== null) { %></optgroup><% }
+                                        }
+                                    %>
                                 </select>
                             </div>
                             <div class="col-md-4"> <label class="form-label fw-bold">Ulaşım / Bilet Durumu</label> <select name="transport_status" class="form-select"><option value="PENDING">Tamamlanmadı</option><option value="DONE">Tamamlandı</option></select> </div>
@@ -293,6 +316,7 @@
                     } catch (err) {
                         console.error('Rehber çakışma kontrolü yapılamadı, kayıt yine de deneniyor:', err);
                         // Ağ/istek hatasında engellemiyoruz; sunucu tarafı /add-tour
+                        // içinde zaten aynı kontrolü son bir güvenlik katmanı olarak yapıyor.
                     }
                 }
 

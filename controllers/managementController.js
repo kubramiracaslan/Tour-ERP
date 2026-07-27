@@ -15,6 +15,21 @@ exports.getManagementPage = async (req, res) => {
     }
 };
 
+// GET: Kullanıcı Yönetimi sayfası (route tarafında requireAdmin ile korunuyor)
+exports.getUsersPage = async (req, res) => {
+    try {
+        const users = await ManagementModel.getAllUsers();
+        res.render('users', {
+            users,
+            page_path: '/users',
+            error: req.query.error || null
+        });
+    } catch (error) {
+        console.error('Kullanıcılar sayfası yüklenirken hata:', error);
+        res.status(500).send('Kullanıcılar sayfası yüklenirken bir hata oluştu.');
+    }
+};
+
 // POST: Save Country
 exports.addCountry = async (req, res) => {
     try {
@@ -48,8 +63,8 @@ exports.addCity = async (req, res) => {
 // POST: Save Agency
 exports.addAgency = async (req, res) => {
     try {
-        // redirect_to: formun hangi sayfadan gönderildiğini belirtiyor
-        // Yoksa (eski bir form/istek gelirse) güvenli varsayılan olarak tour-demands'e dönüyor
+        // redirect_to: formun hangi sayfadan gönderildiğini belirtir (management ya da tour-demands)
+        // Yoksa (eski bir form/istek gelirse) güvenli varsayılan olarak tour-demands'e döner.
         const { agency_name, phone, email, redirect_to } = req.body;
         const returnTo = redirect_to || '/tour-demands';
 
@@ -87,5 +102,35 @@ exports.addGuide = async (req, res) => {
     } catch (error) {
         console.error('Rehber kaydetme hatası:', error);
         res.status(500).send('Rehber kaydedilirken bir hata oluştu.');
+    }
+};
+
+// POST: Save User (SADECE YÖNETİCİ) - route tarafında requireAdmin ile ayrıca korunuyor
+exports.addUser = async (req, res) => {
+    try {
+        const { email, username, password, full_name, role } = req.body;
+
+        if (!email || email.trim() === '' || !username || username.trim() === '' || !password || password.trim() === '') {
+            return res.redirect('/users?error=invalid_user');
+        }
+        if (password.trim().length < 6) {
+            return res.redirect('/users?error=weak_password');
+        }
+
+        await ManagementModel.insertUser({
+            email: email.trim(),
+            username: username.trim(),
+            password: password.trim(),
+            full_name: full_name ? full_name.trim() : username.trim(),
+            role
+        });
+
+        res.redirect('/users');
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.redirect('/users?error=duplicate_username');
+        }
+        console.error('Kullanıcı eklenirken hata:', error);
+        res.status(500).send('Kullanıcı eklenirken bir hata oluştu.');
     }
 };

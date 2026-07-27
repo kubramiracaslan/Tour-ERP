@@ -189,6 +189,13 @@ exports.getDashboardTours = async (year, month) => {
         SELECT t.*, a.agency_name, g.guide_name,
         (SELECT COUNT(om.id) FROM operation_management om WHERE om.tour_id = t.id) as city_count,
         (
+            SELECT GROUP_CONCAT(DISTINCT co.country_name ORDER BY co.country_name SEPARATOR ', ')
+            FROM operation_management om3
+            JOIN cities c3 ON om3.city_id = c3.id
+            JOIN countries co ON c3.country_id = co.id
+            WHERE om3.tour_id = t.id
+        ) as covered_countries,
+        (
             SELECT JSON_ARRAYAGG(
                 JSON_OBJECT(
                     'operation_id', om.id,
@@ -223,7 +230,10 @@ exports.getDashboardTours = async (year, month) => {
 
     const queryParams = [];
     if (year && month) {
-        tourQuery += ` WHERE t.year = ? AND t.month = ? `;
+        // NOT: t.year/t.month kolonlarına değil, doğrudan start_date'e bakıyoruz.
+        // Böylece bu kolonlar manuel SQL ile eklenmiş/yanlış girilmiş bir turda
+        // boş/hatalı kalsa bile filtre yine doğru çalışır.
+        tourQuery += ` WHERE YEAR(t.start_date) = ? AND MONTH(t.start_date) = ? `;
         queryParams.push(year, month);
     }
     tourQuery += ` ORDER BY t.start_date ASC `;
@@ -237,9 +247,31 @@ exports.getGuidesOrderByName = async () => {
     return rows;
 };
 
+// Şehirleri ülkeye göre gruplu göstermek için ülke adını da ekliyoruz.
+// Sıralama önce ülke, sonra şehir - view'da optgroup oluştururken bu sıra önemli.
 exports.getCitiesOrderByName = async () => {
-    const [rows] = await pool.execute('SELECT id, city_name FROM cities ORDER BY city_name ASC');
+    const [rows] = await pool.execute(`
+        SELECT c.id, c.city_name, co.country_name
+        FROM cities c
+        JOIN countries co ON c.country_id = co.id
+        ORDER BY co.country_name ASC, c.city_name ASC
+    `);
     return rows;
+};
+
+// Bir turun, seçilen şehirler üzerinden hangi ülkeleri kapsadığını hesaplar.
+// Elle tutulan ayrı bir "ülke" alanı yok - şehirlerden otomatik türetiliyor,
+// böylece iki ayrı veri kaynağı birbirinden sapmaz.
+exports.getCoveredCountriesByTourId = async (tourId) => {
+    const [rows] = await pool.execute(`
+        SELECT DISTINCT co.country_name
+        FROM operation_management om
+        JOIN cities c ON om.city_id = c.id
+        JOIN countries co ON c.country_id = co.id
+        WHERE om.tour_id = ?
+        ORDER BY co.country_name ASC
+    `, [tourId]);
+    return rows.map(r => r.country_name);
 };
 
 // Takvim sayfası için hafif bir sorgu: sadece tarih, isim ve acente bilgisi
@@ -259,14 +291,21 @@ exports.getToursForExport = async (year, month) => {
     let query = `
         SELECT t.tour_name, t.start_date, t.end_date, a.agency_name, g.guide_name,
                t.transport_status, t.payment_received, t.payment_paid,
-               (SELECT COUNT(om.id) FROM operation_management om WHERE om.tour_id = t.id) as city_count
+               (SELECT COUNT(om.id) FROM operation_management om WHERE om.tour_id = t.id) as city_count,
+               (
+                   SELECT GROUP_CONCAT(DISTINCT co.country_name ORDER BY co.country_name SEPARATOR ', ')
+                   FROM operation_management om2
+                   JOIN cities c2 ON om2.city_id = c2.id
+                   JOIN countries co ON c2.country_id = co.id
+                   WHERE om2.tour_id = t.id
+               ) as covered_countries
         FROM tours t
         LEFT JOIN agencies a ON t.agency_id = a.id
         LEFT JOIN guides g ON t.main_guide_id = g.id
     `;
     const params = [];
     if (year && month) {
-        query += ' WHERE t.year = ? AND t.month = ? ';
+        query += ' WHERE YEAR(t.start_date) = ? AND MONTH(t.start_date) = ? ';
         params.push(year, month);
     }
     query += ' ORDER BY t.start_date ASC';

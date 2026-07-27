@@ -122,6 +122,7 @@ exports.exportToursExcel = async (req, res) => {
             { header: 'Bitiş Tarihi', key: 'end_date', width: 16 },
             { header: 'Acente', key: 'agency_name', width: 25 },
             { header: 'Ana Rehber', key: 'guide_name', width: 22 },
+            { header: 'Kapsanan Ülkeler', key: 'covered_countries', width: 28 },
             { header: 'Şehir Sayısı', key: 'city_count', width: 12 },
             { header: 'Ulaşım Durumu', key: 'transport_status', width: 16 },
             { header: 'Gelen Ödeme', key: 'payment_received', width: 16 },
@@ -139,6 +140,7 @@ exports.exportToursExcel = async (req, res) => {
                 end_date: t.end_date ? t.end_date.toISOString().split('T')[0] : '-',
                 agency_name: t.agency_name || 'Bilinmiyor',
                 guide_name: t.guide_name || 'Atanmadı',
+                covered_countries: t.covered_countries || '-',
                 city_count: t.city_count,
                 transport_status: t.transport_status === 'DONE' ? 'Tamamlandı' : 'Tamamlanmadı',
                 payment_received: t.payment_received === 'DONE' ? 'Alındı' : 'Tamamlanmadı',
@@ -242,15 +244,17 @@ exports.getTourOperation = async (req, res) => {
         const tourRows = await TourModel.getTourById(tourId);
         if (tourRows.length === 0) return res.status(404).send('Tur bulunamadı!');
 
-        const [managedCities, allCities, generalGuides, localGuides] = await Promise.all([
+        const [managedCities, allCities, generalGuides, localGuides, coveredCountries] = await Promise.all([
             TourModel.getTourOperationsByTourId(tourId),
             TourModel.getCitiesOrderByName(),
             TourModel.getGeneralGuides(),
-            TourModel.getLocalGuides()
+            TourModel.getLocalGuides(),
+            TourModel.getCoveredCountriesByTourId(tourId)
         ]);
 
         res.render('tour-operation', {
             tour: tourRows[0],
+            coveredCountries,
             managedCities,
             allCities,
             generalGuides,

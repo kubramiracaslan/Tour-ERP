@@ -26,9 +26,10 @@ app.use(session({
     }
 }));
 
-// Her view'da kullanılabilsin diye giriş yapan kullanıcının adını global olarak enjekte ediyoruz
+// Her view'da kullanılabilsin diye giriş yapan kullanıcının adını ve rolünü global olarak enjekte ediyoruz
 app.use((req, res, next) => {
-    res.locals.currentUser = req.session ? (req.session.fullName || req.session.username) : null;
+    res.locals.currentUser = req.session ? (req.session.fullName || req.session.username || req.session.email) : null;
+    res.locals.currentUserRole = req.session ? req.session.role : null;
     next();
 });
 

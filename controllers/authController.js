@@ -11,13 +11,17 @@ exports.showLoginPage = (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        // Kullanıcı bu alana email de yazabilir, kullanıcı adı da - ikisi de kabul edilir.
+        const { identifier, password } = req.body;
 
-        if (!username || !password) {
+        if (!identifier || !password) {
             return res.redirect('/login?error=missing');
         }
 
-        const [rows] = await db.execute('SELECT * FROM users WHERE username = ?', [username.trim()]);
+        const [rows] = await db.execute(
+            'SELECT * FROM users WHERE email = ? OR username = ?',
+            [identifier.trim(), identifier.trim()]
+        );
         const user = rows[0];
 
         if (!user) {
@@ -30,8 +34,10 @@ exports.login = async (req, res) => {
         }
 
         req.session.userId = user.id;
+        req.session.email = user.email;
         req.session.username = user.username;
         req.session.fullName = user.full_name;
+        req.session.role = user.role;
 
         res.redirect('/');
     } catch (error) {

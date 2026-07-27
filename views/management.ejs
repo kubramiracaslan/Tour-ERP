@@ -21,6 +21,9 @@
                     <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
                     <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
                     <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                    <% if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') { %>
+                        <a href="/users" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/users') ? 'active' : '' %>"><i class="fa-solid fa-user-gear me-1"></i> Kullanıcılar</a>
+                    <% } %>
                 </div>
                 <div class="ms-auto d-flex align-items-center gap-2">
                     <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
@@ -46,14 +49,14 @@
 
             <div class="col-md-6">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white fw-bold py-3">📍 Add New Country</div>
+                    <div class="card-header bg-dark text-white fw-bold py-3">📍 Ülke Ekle </div>
                     <div class="card-body p-4">
                         <form action="/add-country" method="POST">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Country Name</label>
-                                <input type="text" name="country_name" class="form-control" placeholder="e.g. Italy" required>
+                                <label class="form-label fw-semibold">Ülke Adı</label>
+                                <input type="text" name="country_name" class="form-control" placeholder="Ülke Adı" required>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 py-2">Save Country</button>
+                            <button type="submit" class="btn btn-primary w-100 py-2">Kaydet</button>
                         </form>
                     </div>
                 </div>
@@ -61,23 +64,23 @@
 
             <div class="col-md-6">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white fw-bold py-3">🏙️ Add New City</div>
+                    <div class="card-header bg-dark text-white fw-bold py-3">🏙️ Şehir Ekle</div>
                     <div class="card-body p-4">
                         <form action="/add-city" method="POST">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Select Country</label>
+                                <label class="form-label fw-semibold">Ülke Seç</label>
                                 <select name="country_id" class="form-select" required>
-                                    <option value="">-- Choose Country --</option>
+                                    <option value="">Ülke Seç</option>
                                     <% countries.forEach(c => { %>
                                         <option value="<%= c.id %>"><%= c.country_name %></option>
                                     <% }) %>
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">City Name</label>
-                                <input type="text" name="city_name" class="form-control" placeholder="e.g. Rome" required>
+                                <label class="form-label fw-semibold">Şehir Adı</label>
+                                <input type="text" name="city_name" class="form-control" placeholder="Şehir Adı" required>
                             </div>
-                            <button type="submit" class="btn btn-success w-100 py-2">Save City</button>
+                            <button type="submit" class="btn btn-success w-100 py-2">Kaydet</button>
                         </form>
                     </div>
                 </div>
@@ -85,23 +88,23 @@
 
             <div class="col-md-6">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white fw-bold py-3">🏢 Add New Agency</div>
+                    <div class="card-header bg-dark text-white fw-bold py-3">🏢 Acente Ekle</div>
                     <div class="card-body p-4">
                         <form action="/add-agency" method="POST">
                             <input type="hidden" name="redirect_to" value="/management">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Agency Name</label>
-                                <input type="text" name="agency_name" class="form-control" placeholder="e.g. Global Travel LLC" required>
+                                <label class="form-label fw-semibold">Acente Adı</label>
+                                <input type="text" name="agency_name" class="form-control" placeholder="Acente Adı" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Phone Number</label>
-                                <input type="tel" name="phone" class="form-control" placeholder="e.g. +90 532 XXX XX XX">
+                                <label class="form-label fw-semibold">Telefon Numarası</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="Telefon Numarası">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Email Address</label>
-                                <input type="email" name="email" class="form-control" placeholder="e.g. info@agency.com">
+                                <label class="form-label fw-semibold">Email Adresi</label>
+                                <input type="email" name="email" class="form-control" placeholder="Email Adresi">
                             </div>
-                            <button type="submit" class="btn btn-info text-white w-100 py-2">Save Agency</button>
+                            <button type="submit" class="btn btn-info text-white w-100 py-2">Kaydet</button>
                         </form>
                     </div>
                 </div>
@@ -109,29 +112,29 @@
 
             <div class="col-md-6">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white fw-bold py-3">👤 Add New Guide</div>
+                    <div class="card-header bg-dark text-white fw-bold py-3">👤 Rehber Ekle</div>
                     <div class="card-body p-4">
                         <form action="/add-guide" method="POST">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Guide Name</label>
-                                <input type="text" name="guide_name" class="form-control" placeholder="e.g. John Doe" required>
+                                <label class="form-label fw-semibold">Rehber Adı</label>
+                                <input type="text" name="guide_name" class="form-control" placeholder="Rehber Adı" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Phone Number</label>
-                                <input type="text" name="phone" class="form-control" placeholder="e.g. +90...">
+                                <label class="form-label fw-semibold">Telefon Numarası</label>
+                                <input type="text" name="phone" class="form-control" placeholder="Telefon Numarası">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Email Address</label>
-                                <input type="email" name="email" class="form-control" placeholder="e.g. guide@example.com">
+                                <label class="form-label fw-semibold">Email Adresi</label>
+                                <input type="email" name="email" class="form-control" placeholder="Email Adresi">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Guide Type</label>
+                                <label class="form-label fw-semibold">Rehber Türü</label>
                                 <select name="guide_type" class="form-select">
-                                    <option value="GENERAL">General Tour Leader</option>
-                                    <option value="LOCAL">Local City Guide</option>
+                                    <option value="GENERAL">Genel Tur Rehberi</option>
+                                    <option value="LOCAL">Yerel Şehir Rehberi</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-warning text-white w-100 py-2">Save Guide</button>
+                            <button type="submit" class="btn btn-warning text-white w-100 py-2">Kaydet</button>
                         </form>
                     </div>
                 </div>

@@ -39,8 +39,9 @@
         <div class="login-icon">
             <i class="fa-solid fa-map-location-dot fa-lg text-white"></i>
         </div>
-        <h4 class="fw-bold text-center text-dark mb-1">Operasyon Takip Sistemi</h4>
-        <p class="text-center text-muted mb-4 small">Devam etmek için giriş yapın</p>
+            <h4 class="fw-bold text-center text-dark mb-4">
+            Operasyon Takip Sistemi
+        </h4>
 
         <% if (typeof error !== 'undefined' && error) { %>
             <div class="alert alert-danger fw-semibold py-2">
@@ -51,10 +52,10 @@
             </div>
         <% } %>
 
-        <form action="/login" method="POST">
+        <form action="/login" method="POST" >
             <div class="mb-3">
-                <label class="form-label fw-semibold small">Kullanıcı Adı</label>
-                <input type="text" name="username" class="form-control py-2" placeholder="kullanici_adi" required autofocus>
+                <label class="form-label fw-semibold small">Kullanıcı Adı veya Email</label>
+                <input type="text" name="identifier" class="form-control py-2" placeholder="kullanici_adi ya da email" required autofocus>
             </div>
             <div class="mb-4">
                 <label class="form-label fw-semibold small">Parola</label>

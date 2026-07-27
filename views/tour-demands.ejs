@@ -37,6 +37,11 @@
                 <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>">
                     <i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar
                 </a>
+                <% if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') { %>
+                    <a href="/users" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/users') ? 'active' : '' %>">
+                        <i class="fa-solid fa-user-gear me-1"></i> Kullanıcılar
+                    </a>
+                <% } %>
             </div>
             <div class="ms-auto d-flex align-items-center gap-2">
                 <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
@@ -434,3 +439,4 @@
     </script>
 </body>
 </html>
+    

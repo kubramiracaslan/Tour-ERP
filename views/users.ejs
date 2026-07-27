@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Yönetimi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background: linear-gradient(135deg, #10b981, #059669); }
+        .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .table-responsive { background: white; border-radius: 15px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark p-3 text-white shadow">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold fs-3"><i class="fa-solid fa-map-location-dot me-2"></i> Operasyon Takip Sistemi</span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav ms-4 gap-2">
+                    <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
+                    <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
+                    <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
+                    <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                    <a href="/users" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/users') ? 'active' : '' %>"><i class="fa-solid fa-user-gear me-1"></i> Kullanıcılar</a>
+                </div>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span class="text-white small fw-semibold"><i class="fa-solid fa-circle-user me-1"></i><%= typeof currentUser !== 'undefined' && currentUser ? currentUser : '' %></span>
+                    <form action="/logout" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-light fw-bold"><i class="fa-solid fa-right-from-bracket me-1"></i> Çıkış</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid my-4 px-4">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger fw-semibold shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                <% if (error === 'invalid_user') { %> Lütfen geçerli bir kullanıcı adı ve parola giriniz.
+                <% } else if (error === 'weak_password') { %> Parola en az 6 karakter olmalı.
+                <% } else if (error === 'duplicate_username') { %> Bu kullanıcı adı zaten kullanılıyor.
+                <% } else { %> Girdiğiniz bilgilerde bir sorun var, lütfen kontrol edin.
+                <% } %>
+            </div>
+        <% } %>
+
+        <div class="row">
+            <div class="col-xl-4 col-lg-5 mb-4">
+                <div class="card p-4 shadow-sm bg-white">
+                    <h4 class="fw-bold text-dark mb-4"><i class="fa-solid fa-user-plus text-warning me-2"></i> Yeni Kullanıcı Ekle</h4>
+                    <form action="/add-user" method="POST" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Kullanıcı Adı</label>
+                            <input type="text" name="username" class="form-control py-2" placeholder="Kullanıcı Adı" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Email</label>
+                            <input type="email" name="email" class="form-control py-2" placeholder="Email Adresi" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Ad Soyad</label>
+                            <input type="text" name="full_name" class="form-control py-2" placeholder="Adı Soyadı">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Parola</label>
+                            <input type="password" name="password" class="form-control py-2" placeholder="Parola" required minlength="6">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Rol</label>
+                            <select name="role" class="form-select py-2">
+                                <option value="staff">Personel (normal kullanıcı)</option>
+                                <option value="admin">Yönetici (kullanıcı ekleyebilir)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-warning text-dark fw-bold w-100 py-2 shadow-sm">
+                                <i class="fa-solid fa-floppy-disk me-1"></i> Kullanıcıyı Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-xl-8 col-lg-7 mb-4">
+                <div class="card p-4 shadow-sm bg-white h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="fw-bold text-dark m-0"><i class="fa-solid fa-users text-success me-2"></i> Mevcut Kullanıcılar</h4>
+                        <span class="badge bg-dark px-3 py-2 fw-semibold fs-6">Toplam: <%= users.length %> Kullanıcı</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle m-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Kullanıcı Adı</th>
+                                    <th>Email</th>
+                                    <th>Ad Soyad</th>
+                                    <th>Rol</th>
+                                    <th>Oluşturulma Tarihi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (users.length === 0) { %>
+                                    <tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Henüz kullanıcı bulunmuyor.</td></tr>
+                                <% } %>
+                                <% users.forEach(u => { %>
+                                    <tr class="fw-semibold">
+                                        <td><i class="fa-solid fa-circle-user text-secondary me-1"></i> <%= u.username %></td>
+                                        <td><small class="text-muted"><%= u.email %></small></td>
+                                        <td><%= u.full_name || '-' %></td>
+                                        <td>
+                                            <% if (u.role === 'admin') { %>
+                                                <span class="badge bg-warning text-dark px-3 py-2">Yönetici</span>
+                                            <% } else { %>
+                                                <span class="badge bg-secondary px-3 py-2">Personel</span>
+                                            <% } %>
+                                        </td>
+                                        <td><small class="text-muted"><%= u.created_at ? new Date(u.created_at).toISOString().split('T')[0] : '-' %></small></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
