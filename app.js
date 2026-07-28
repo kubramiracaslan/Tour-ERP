@@ -15,9 +15,16 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// SESSION_SECRET .env'de tanımlı değilse uygulama, tahmin edilebilir bir
+// anahtarla çalışmak yerine durur
+if (!process.env.SESSION_SECRET) {
+    console.error('HATA: .env dosyasında SESSION_SECRET tanımlı değil. Sunucu başlatılamıyor.');
+    process.exit(1);
+}
+
 // Oturum yönetimi
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'lutfen-env-dosyasinda-bunu-degistir',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {

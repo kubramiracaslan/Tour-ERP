@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 
 exports.showLoginPage = (req, res) => {
-    // Zaten giriş yapmışsa tekrar login ekranı göstermeye gerek yok
+    // Zaten giriş yapmışsa tekrar login ekranı gösterme
     if (req.session && req.session.userId) {
         return res.redirect('/');
     }
@@ -11,7 +11,7 @@ exports.showLoginPage = (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        // Kullanıcı bu alana email de yazabilir, kullanıcı adı da - ikisi de kabul edilir.
+        // Kullanıcı bu alana email de yazabilir, kullanıcı adı da 
         const { identifier, password } = req.body;
 
         if (!identifier || !password) {
