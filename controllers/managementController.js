@@ -4,8 +4,10 @@ const ManagementModel = require('../models/managementModel');
 exports.getManagementPage = async (req, res) => {
     try {
         const countries = await ManagementModel.getAllCountries();
+        const agencies = await ManagementModel.getAllAgencies();
         res.render('management', {
             countries,
+            agencies,
             page_path: '/management',
             error: req.query.error || null
         });
@@ -85,6 +87,30 @@ exports.addAgency = async (req, res) => {
     }
 };
 
+// POST: Update Agency (SADECE YÖNETİCİ - route'ta requireAdmin ile korunuyor)
+exports.updateAgency = async (req, res) => {
+    try {
+        const agencyId = req.params.id;
+        const { agency_name, phone, email } = req.body;
+
+        if (!agency_name || agency_name.trim() === '') {
+            return res.redirect('/management?error=invalid_agency_name');
+        }
+
+        await ManagementModel.updateAgency({
+            id: agencyId,
+            agency_name: agency_name.trim(),
+            phone: phone ? phone.trim() : null,
+            email: email ? email.trim() : null
+        });
+
+        res.redirect('/management');
+    } catch (error) {
+        console.error('Acente güncellenirken hata:', error);
+        res.status(500).send('Acente güncellenirken bir hata oluştu.');
+    }
+};
+
 // POST: Save Guide
 exports.addGuide = async (req, res) => {
     try {
@@ -132,5 +158,73 @@ exports.addUser = async (req, res) => {
         }
         console.error('Kullanıcı eklenirken hata:', error);
         res.status(500).send('Kullanıcı eklenirken bir hata oluştu.');
+    }
+};
+
+// POST: Update User (SADECE YÖNETİCİ)
+exports.updateUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { email, username, full_name, role, password } = req.body;
+
+        if (!email || email.trim() === '' || !username || username.trim() === '') {
+            return res.redirect('/users?error=invalid_user');
+        }
+        if (password && password.trim() !== '' && password.trim().length < 6) {
+            return res.redirect('/users?error=weak_password');
+        }
+
+        // Son yöneticiyi personel rolüne düşürmeye çalışıyorsa engelle
+        if (role !== 'admin') {
+            const targetUser = await ManagementModel.getUserById(userId);
+            if (targetUser && targetUser.role === 'admin') {
+                const adminCount = await ManagementModel.countAdmins();
+                if (adminCount <= 1) {
+                    return res.redirect('/users?error=last_admin');
+                }
+            }
+        }
+
+        await ManagementModel.updateUser({
+            id: userId,
+            email: email.trim(),
+            username: username.trim(),
+            full_name: full_name ? full_name.trim() : username.trim(),
+            role,
+            password: password ? password.trim() : null
+        });
+
+        res.redirect('/users');
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.redirect('/users?error=duplicate_username');
+        }
+        console.error('Kullanıcı güncellenirken hata:', error);
+        res.status(500).send('Kullanıcı güncellenirken bir hata oluştu.');
+    }
+};
+
+// POST: Delete User (SADECE YÖNETİCİ) - kendi hesabını silmesini ve son yöneticiyi silmesini engeller
+exports.deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        if (req.session.userId && String(req.session.userId) === String(userId)) {
+            return res.redirect('/users?error=cannot_delete_self');
+        }
+
+        const targetUser = await ManagementModel.getUserById(userId);
+        if (targetUser && targetUser.role === 'admin') {
+            const adminCount = await ManagementModel.countAdmins();
+            if (adminCount <= 1) {
+                return res.redirect('/users?error=last_admin');
+            }
+        }
+
+        await ManagementModel.deleteUser(userId);
+        res.redirect('/users');
+    } catch (error) {
+        console.error('Kullanıcı silinirken hata:', error);
+        res.status(500).send('Kullanıcı silinirken bir hata oluştu.');
     }
 };

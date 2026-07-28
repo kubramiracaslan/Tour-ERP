@@ -30,6 +30,20 @@ exports.insertAgency = async ({ agency_name, phone, email }) => {
     return result.insertId;
 };
 
+exports.getAllAgencies = async () => {
+    const [rows] = await db.execute(
+        'SELECT id, agency_name, phone, email FROM agencies ORDER BY agency_name ASC'
+    );
+    return rows;
+};
+
+exports.updateAgency = async ({ id, agency_name, phone, email }) => {
+    await db.execute(
+        'UPDATE agencies SET agency_name = ?, phone = ?, email = ? WHERE id = ?',
+        [agency_name, phone || null, email || null, id]
+    );
+};
+
 exports.insertGuide = async ({ guide_name, phone, email, guide_type }) => {
     const [result] = await db.execute(
         'INSERT INTO guides (guide_name, phone, email, guide_type) VALUES (?, ?, ?, ?)',
@@ -53,4 +67,40 @@ exports.getAllUsers = async () => {
         'SELECT id, email, username, full_name, role, created_at FROM users ORDER BY email ASC'
     );
     return rows;
+};
+
+exports.getUserById = async (id) => {
+    const [rows] = await db.execute(
+        'SELECT id, email, username, full_name, role FROM users WHERE id = ?',
+        [id]
+    );
+    return rows[0] || null;
+};
+
+// password verilmişse (boş değilse) parolayı da günceller, verilmemişse eski parola korunur
+exports.updateUser = async ({ id, email, username, full_name, role, password }) => {
+    const safeRole = role === 'admin' ? 'admin' : 'staff';
+    const safeFullName = full_name || username || email;
+
+    if (password && password.trim() !== '') {
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.execute(
+            'UPDATE users SET email = ?, username = ?, full_name = ?, role = ?, password_hash = ? WHERE id = ?',
+            [email, username, safeFullName, safeRole, passwordHash, id]
+        );
+    } else {
+        await db.execute(
+            'UPDATE users SET email = ?, username = ?, full_name = ?, role = ? WHERE id = ?',
+            [email, username, safeFullName, safeRole, id]
+        );
+    }
+};
+
+exports.deleteUser = async (id) => {
+    await db.execute('DELETE FROM users WHERE id = ?', [id]);
+};
+
+exports.countAdmins = async () => {
+    const [rows] = await db.execute("SELECT COUNT(*) as cnt FROM users WHERE role = 'admin'");
+    return rows[0].cnt;
 };

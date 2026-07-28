@@ -102,21 +102,53 @@ exports.getAgenciesOrderByName = async () => {
 };
 
 exports.insertDemand = async (demandData) => {
-    const { demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency } = demandData;
+    const { demand_name, start_date, end_date, pax, agency_id, first_contact_date, offer_date, offered_price, currency } = demandData;
     const query = `
-        INSERT INTO tour_demands (demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+        INSERT INTO tour_demands (demand_name, start_date, end_date, pax, agency_id, first_contact_date, offer_date, offered_price, currency, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
     `;
     return pool.execute(query, [
-        demand_name, start_date || null, end_date || null, agency_id || null,
+        demand_name, start_date || null, end_date || null, pax || null, agency_id || null,
         first_contact_date || null, offer_date || null, offered_price || null, currency || 'EUR'
     ]);
+};
+
+// Onaylanan (gerçek tura dönüşen) taleplerin toplam yolcu sayısı.
+// "Bu yıl kaç yolcu taşıdık" sorusunun cevabı bu olduğu için sadece
+// APPROVED durumundaki talepleri, VE seçilen yılın tarihine denk gelenleri sayıyoruz.
+exports.getTotalApprovedPax = async (year) => {
+    let query = "SELECT COALESCE(SUM(pax), 0) as total FROM tour_demands WHERE status = 'APPROVED'";
+    const params = [];
+    if (year) {
+        query += ' AND YEAR(start_date) = ?';
+        params.push(year);
+    }
+    const [rows] = await pool.execute(query, params);
+    return rows[0].total;
 };
 
 exports.updateDemandStatus = async (id, status, rejection_reason) => {
     return pool.execute('UPDATE tour_demands SET status = ?, rejection_reason = ? WHERE id = ?', [
         status, status === 'REJECTED' ? rejection_reason : null, id
     ]);
+};
+
+// Talebin kendi bilgilerini (yolcu sayısı, tarih, fiyat vb.) düzenler.
+// SADECE YÖNETİCİ çağırabilir (kontrol route/controller'da yapılıyor).
+// Durum (status) ve tur bağlantısı (tour_id) burada değişmez, onlar ayrı akışlarla yönetiliyor.
+exports.updateDemand = async (id, demandData) => {
+    const { demand_name, start_date, end_date, pax, agency_id, first_contact_date, offer_date, offered_price, currency } = demandData;
+    return pool.execute(
+        `UPDATE tour_demands SET
+            demand_name = ?, start_date = ?, end_date = ?, pax = ?, agency_id = ?,
+            first_contact_date = ?, offer_date = ?, offered_price = ?, currency = ?
+         WHERE id = ?`,
+        [
+            demand_name, start_date || null, end_date || null, pax || null, agency_id || null,
+            first_contact_date || null, offer_date || null, offered_price || null, currency || 'EUR',
+            id
+        ]
+    );
 };
 
 // Talep ONAYLANDIĞINDA çağrılır. Eğer bu talep daha önce bir tura

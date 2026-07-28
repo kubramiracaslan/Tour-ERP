@@ -34,10 +34,10 @@
                 <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>">
                     <i class="fa-solid fa-calendar-days me-1"></i> Takvim
                 </a>
-                <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>">
-                    <i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar
-                </a>
                 <% if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') { %>
+                    <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>">
+                        <i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar
+                    </a>
                     <a href="/users" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/users') ? 'active' : '' %>">
                         <i class="fa-solid fa-user-gear me-1"></i> Kullanıcılar
                     </a>
@@ -56,7 +56,9 @@
     <div class="container-fluid my-4 px-4">
         <% if (typeof error !== 'undefined' && error) { %>
             <div class="alert alert-danger fw-semibold shadow-sm">
-                <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+                <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                <% if (error === 'invalid_demand') { %> Lütfen geçerli bir talep adı giriniz.
+                <% } else { %><%= error %><% } %>
             </div>
         <% } %>
         <div class="row">
@@ -87,6 +89,10 @@
                             <small class="text-muted fst-italic">
                                 <i class="fa-solid fa-circle-info me-1"></i>Bu tarihler, talep onaylandığında otomatik oluşacak turun tarihleri olarak kullanılır.
                             </small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Yolcu Sayısı (Pax)</label>
+                            <input type="number" name="pax" min="1" class="form-control py-2" placeholder="Örn: 25">
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold small">Talebi Getiren Acente</label>
@@ -135,6 +141,17 @@
                                 <i class="fa-solid fa-file-excel me-1"></i> Excel'e Aktar
                             </a>
                             <span class="badge bg-dark px-3 py-2 fw-semibold fs-6">Toplam: <%= demands.length %> Talep</span>
+                            <form action="/tour-demands" method="GET" class="d-flex align-items-center gap-1 m-0">
+                                <select name="year" class="form-select form-select-sm fw-semibold" onchange="this.form.submit()" style="width: auto;">
+                                    <% const yearOptions = [2025, 2026, 2027, 2028]; %>
+                                    <% yearOptions.forEach(y => { %>
+                                        <option value="<%= y %>" <%= String(selectedYear) === String(y) ? 'selected' : '' %>><%= y %></option>
+                                    <% }) %>
+                                </select>
+                                <span class="badge bg-success px-3 py-2 fw-semibold fs-6" title="Sadece onaylanıp gerçek tura dönüşen taleplerin, seçilen yıldaki yolcuları sayılır">
+                                    <i class="fa-solid fa-users me-1"></i>Taşınan Yolcu: <%= totalApprovedPax %>
+                                </span>
+                            </form>
                         </div>
                     </div>
 
@@ -144,12 +161,14 @@
                                 <tr>
                                     <th>Tur / Talep Adı</th>
                                     <th>Tur Tarihleri</th>
+                                    <th class="text-nowrap">Yolcu Sayısı</th>
                                     <th>Acente</th>
                                     <th>İlk Görüşme</th>
                                     <th>Teklif Tarihi</th>
                                     <th>Verilen Fiyat</th>
                                     <th>Mevcut Durum</th>
-                                    <th class="text-center" style="width: 200px;">Durumu Güncelle</th>
+                                    <th class="text-center" style="width: 190px;">Durumu Güncelle</th>
+                                    <th class="text-center" style="width: 110px;">İşlem</th>
                                 </tr>
                                 <!-- FİLTRE SATIRI -->
                                 <tr class="table-white">
@@ -158,6 +177,12 @@
                                     </th>
                                     <th class="p-1">
                                         <input type="date" id="filter-tour-date" class="form-control form-control-sm" title="Bu tarihte devam eden turları göster">
+                                    </th>
+                                    <th class="p-1">
+                                        <div class="d-flex gap-1">
+                                            <input type="number" id="filter-pax-min" class="form-control form-control-sm" placeholder="Min">
+                                            <input type="number" id="filter-pax-max" class="form-control form-control-sm" placeholder="Max">
+                                        </div>
                                     </th>
                                     <th class="p-1">
                                         <select id="filter-agency" class="form-select form-select-sm">
@@ -193,12 +218,13 @@
                                             <i class="fa-solid fa-filter-circle-xmark"></i>
                                         </button>
                                     </th>
+                                    <th class="p-1"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if(demands.length === 0) { %>
                                     <tr>
-                                        <td colspan="8" class="text-center py-5 text-muted fw-semibold">Henüz sisteme işlenmiş bir acente talebi bulunmuyor.</td>
+                                        <td colspan="10" class="text-center py-5 text-muted fw-semibold">Henüz sisteme işlenmiş bir acente talebi bulunmuyor.</td>
                                     </tr>
                                 <% } %>
                                 <% demands.forEach(d => { %>
@@ -210,6 +236,7 @@
                                         data-tour-start="<%= d.start_date ? d.start_date.toISOString().split('T')[0] : '' %>"
                                         data-tour-end="<%= d.end_date ? d.end_date.toISOString().split('T')[0] : '' %>"
                                         data-price="<%= Number(d.offered_price || 0) %>"
+                                        data-pax="<%= Number(d.pax || 0) %>"
                                         data-status="<%= d.status %>">
                                         <td class="text-primary fs-5">
                                             <%= d.demand_name %>
@@ -219,6 +246,13 @@
                                                 <%= d.start_date ? d.start_date.toISOString().split('T')[0] : '-' %> /
                                                 <%= d.end_date ? d.end_date.toISOString().split('T')[0] : '-' %>
                                             </small>
+                                        </td>
+                                        <td class="text-center">
+                                            <% if (d.pax) { %>
+                                                <span class="fw-bold text-dark fs-5"><%= d.pax %></span>
+                                            <% } else { %>
+                                                <span class="text-muted">-</span>
+                                            <% } %>
                                         </td>
                                         <td>
                                             <div class="d-flex align-items-center gap-2">
@@ -260,7 +294,7 @@
                                             <% } %>
                                         </td>
                                         <td>
-                                            <form action="/update-demand-status/<%= d.id %>" method="POST" id="statusForm-<%= d.id %>" class="d-flex gap-1 align-items-center">
+                                            <form action="/update-demand-status/<%= d.id %>" method="POST" id="statusForm-<%= d.id %>" class="d-flex gap-2 align-items-center">
                                                 <select name="status" class="form-select form-select-sm fw-bold py-1" onchange="handleStatusChange(this, '<%= d.id %>', '<%= d.demand_name %>')">
                                                     <option value="PENDING" <%= d.status === 'PENDING' ? 'selected' : '' %>>Beklemede</option>
                                                     <option value="IN_PROGRESS" <%= d.status === 'IN_PROGRESS' ? 'selected' : '' %>>Üzerinde Çalışılıyor 🔧</option>
@@ -269,6 +303,27 @@
                                                 </select>
                                                 <button type="submit" id="btn-submit-<%= d.id %>" class="btn btn-sm btn-dark fw-bold">Uygula</button>
                                             </form>
+                                        </td>
+                                        <td class="text-center">
+                                            <% if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') { %>
+                                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold edit-demand-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#editDemandModal"
+                                                        data-id="<%= d.id %>"
+                                                        data-demand-name="<%= d.demand_name %>"
+                                                        data-start-date="<%= d.start_date ? d.start_date.toISOString().split('T')[0] : '' %>"
+                                                        data-end-date="<%= d.end_date ? d.end_date.toISOString().split('T')[0] : '' %>"
+                                                        data-pax="<%= d.pax || '' %>"
+                                                        data-agency-id="<%= d.agency_id || '' %>"
+                                                        data-first-contact="<%= d.first_contact_date ? d.first_contact_date.toISOString().split('T')[0] : '' %>"
+                                                        data-offer-date="<%= d.offer_date ? d.offer_date.toISOString().split('T')[0] : '' %>"
+                                                        data-offered-price="<%= d.offered_price || '' %>"
+                                                        data-currency="<%= d.currency %>"
+                                                        title="Talebi Düzenle">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                            <% } else { %>
+                                                <span class="text-muted">-</span>
+                                            <% } %>
                                         </td>
                                     </tr>
                                 <% }) %>
@@ -334,7 +389,92 @@
         </div>
     </div>
 
+    <!-- Talep Düzenleme Modalı (Sadece Yönetici) -->
+    <div class="modal fade" id="editDemandModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 15px;">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2"></i> Talebi Düzenle</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editDemandForm" method="POST">
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">Talep Edilen Tur / Organizasyon</label>
+                                <input type="text" name="demand_name" id="edit-demand-name" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Tur Başlangıç Tarihi</label>
+                                <input type="date" name="start_date" id="edit-demand-start" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Tur Bitiş Tarihi</label>
+                                <input type="date" name="end_date" id="edit-demand-end" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Yolcu Sayısı (Pax)</label>
+                                <input type="number" name="pax" id="edit-demand-pax" min="1" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Acente</label>
+                                <select name="agency_id" id="edit-demand-agency" class="form-select">
+                                    <option value="">-- Acente Seçin --</option>
+                                    <% agencies.forEach(a => { %>
+                                        <option value="<%= a.id %>"><%= a.agency_name %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">İlk Görüşme Tarihi</label>
+                                <input type="date" name="first_contact_date" id="edit-demand-first-contact" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Teklif Tarihi</label>
+                                <input type="date" name="offer_date" id="edit-demand-offer-date" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Verilen Fiyat</label>
+                                <input type="number" step="0.01" name="offered_price" id="edit-demand-price" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Döviz Birimi</label>
+                                <select name="currency" id="edit-demand-currency" class="form-select">
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="TRY">TRY (₺)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Kapat</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Değişiklikleri Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.edit-demand-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('editDemandForm').action = '/update-demand/' + btn.getAttribute('data-id');
+                    document.getElementById('edit-demand-name').value = btn.getAttribute('data-demand-name') || '';
+                    document.getElementById('edit-demand-start').value = btn.getAttribute('data-start-date') || '';
+                    document.getElementById('edit-demand-end').value = btn.getAttribute('data-end-date') || '';
+                    document.getElementById('edit-demand-pax').value = btn.getAttribute('data-pax') || '';
+                    document.getElementById('edit-demand-agency').value = btn.getAttribute('data-agency-id') || '';
+                    document.getElementById('edit-demand-first-contact').value = btn.getAttribute('data-first-contact') || '';
+                    document.getElementById('edit-demand-offer-date').value = btn.getAttribute('data-offer-date') || '';
+                    document.getElementById('edit-demand-price').value = btn.getAttribute('data-offered-price') || '';
+                    document.getElementById('edit-demand-currency').value = btn.getAttribute('data-currency') || 'EUR';
+                });
+            });
+        });
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
@@ -365,6 +505,8 @@
             const tourDateInput = document.getElementById('filter-tour-date');
             const priceMinInput = document.getElementById('filter-price-min');
             const priceMaxInput = document.getElementById('filter-price-max');
+            const paxMinInput = document.getElementById('filter-pax-min');
+            const paxMaxInput = document.getElementById('filter-pax-max');
             const statusSelect = document.getElementById('filter-status');
             const clearBtn = document.getElementById('btn-clear-filters');
             const tableBody = document.querySelector('#demandsTable tbody');
@@ -380,6 +522,8 @@
                 const tourDateQuery = tourDateInput.value; // YYYY-MM-DD
                 const priceMin = priceMinInput.value !== '' ? Number(priceMinInput.value) : null;
                 const priceMax = priceMaxInput.value !== '' ? Number(priceMaxInput.value) : null;
+                const paxMin = paxMinInput.value !== '' ? Number(paxMinInput.value) : null;
+                const paxMax = paxMaxInput.value !== '' ? Number(paxMaxInput.value) : null;
                 const statusQuery = statusSelect.value;
 
                 const rows = tableBody.querySelectorAll('tr[data-demand-name]');
@@ -387,6 +531,7 @@
 
                 rows.forEach(row => {
                     const rowPrice = Number(row.getAttribute('data-price') || 0);
+                    const rowPax = Number(row.getAttribute('data-pax') || 0);
                     const tourStart = row.getAttribute('data-tour-start');
                     const tourEnd = row.getAttribute('data-tour-end');
 
@@ -398,10 +543,13 @@
                     const matchesTourDate = !tourDateQuery || (tourStart && tourEnd && tourStart <= tourDateQuery && tourDateQuery <= tourEnd);
                     const matchesPriceMin = priceMin === null || rowPrice >= priceMin;
                     const matchesPriceMax = priceMax === null || rowPrice <= priceMax;
+                    const matchesPaxMin = paxMin === null || rowPax >= paxMin;
+                    const matchesPaxMax = paxMax === null || rowPax <= paxMax;
                     const matchesStatus = !statusQuery || row.getAttribute('data-status') === statusQuery;
 
                     const isVisible = matchesName && matchesAgency && matchesFirstContact
-                        && matchesOfferDate && matchesTourDate && matchesPriceMin && matchesPriceMax && matchesStatus;
+                        && matchesOfferDate && matchesTourDate && matchesPriceMin && matchesPriceMax
+                        && matchesPaxMin && matchesPaxMax && matchesStatus;
 
                     row.style.display = isVisible ? '' : 'none';
                     if (isVisible) visibleCount++;
@@ -413,7 +561,7 @@
                     if (!emptyRow) {
                         emptyRow = document.createElement('tr');
                         emptyRow.id = 'filter-empty-row';
-                        emptyRow.innerHTML = '<td colspan="8" class="text-center py-4 text-muted fw-semibold">Filtreyle eşleşen talep bulunamadı.</td>';
+                        emptyRow.innerHTML = '<td colspan="10" class="text-center py-4 text-muted fw-semibold">Filtreyle eşleşen talep bulunamadı.</td>';
                         tableBody.appendChild(emptyRow);
                     }
                 } else if (emptyRow) {
@@ -421,7 +569,7 @@
                 }
             }
 
-            [nameInput, priceMinInput, priceMaxInput].forEach(el => el.addEventListener('input', applyFilters));
+            [nameInput, priceMinInput, priceMaxInput, paxMinInput, paxMaxInput].forEach(el => el.addEventListener('input', applyFilters));
             [agencySelect, firstContactInput, offerDateInput, tourDateInput, statusSelect].forEach(el => el.addEventListener('change', applyFilters));
 
             clearBtn.addEventListener('click', () => {
@@ -432,6 +580,8 @@
                 tourDateInput.value = '';
                 priceMinInput.value = '';
                 priceMaxInput.value = '';
+                paxMinInput.value = '';
+                paxMaxInput.value = '';
                 statusSelect.value = '';
                 applyFilters();
             });
@@ -439,4 +589,3 @@
     </script>
 </body>
 </html>
-    

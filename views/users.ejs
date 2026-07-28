@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .navbar { background: linear-gradient(135deg, #10b981, #059669); }
+        .navbar { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
         .nav-link.active { background-color: rgba(255,255,255,0.15) !important; border-radius: 8px; }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .table-responsive { background: white; border-radius: 15px; }
@@ -23,7 +23,9 @@
                     <a href="/" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/') ? 'active' : '' %>"><i class="fa-solid fa-list-check me-1"></i> Aktif Turlar</a>
                     <a href="/tour-demands" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/tour-demands') ? 'active' : '' %>"><i class="fa-solid fa-table-list me-1"></i> Talep Takip (CRM)</a>
                     <a href="/calendar" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/calendar') ? 'active' : '' %>"><i class="fa-solid fa-calendar-days me-1"></i> Takvim</a>
-                    <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                    <% if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') { %>
+                        <a href="/management" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/management') ? 'active' : '' %>"><i class="fa-solid fa-plus me-1"></i> Temel Tanımlamalar</a>
+                    <% } %>
                     <a href="/users" class="nav-link fw-bold px-3 text-white <%= (typeof page_path !== 'undefined' && page_path === '/users') ? 'active' : '' %>"><i class="fa-solid fa-user-gear me-1"></i> Kullanıcılar</a>
                 </div>
                 <div class="ms-auto d-flex align-items-center gap-2">
@@ -43,6 +45,8 @@
                 <% if (error === 'invalid_user') { %> Lütfen geçerli bir kullanıcı adı ve parola giriniz.
                 <% } else if (error === 'weak_password') { %> Parola en az 6 karakter olmalı.
                 <% } else if (error === 'duplicate_username') { %> Bu kullanıcı adı zaten kullanılıyor.
+                <% } else if (error === 'last_admin') { %> Sistemde en az bir yönetici kalmalı — son yöneticiyi silemez ya da personel yapamazsın.
+                <% } else if (error === 'cannot_delete_self') { %> Kendi hesabını silemezsin, başka bir yönetici senin adına silmeli.
                 <% } else { %> Girdiğiniz bilgilerde bir sorun var, lütfen kontrol edin.
                 <% } %>
             </div>
@@ -55,19 +59,19 @@
                     <form action="/add-user" method="POST" class="row g-3">
                         <div class="col-12">
                             <label class="form-label fw-bold small">Kullanıcı Adı</label>
-                            <input type="text" name="username" class="form-control py-2" placeholder="Kullanıcı Adı" required>
+                            <input type="text" name="username" class="form-control py-2" placeholder="örn. ahmet" required>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold small">Email</label>
-                            <input type="email" name="email" class="form-control py-2" placeholder="Email Adresi" required>
+                            <input type="email" name="email" class="form-control py-2" placeholder="örn. ahmet@sirket.com" required>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold small">Ad Soyad</label>
-                            <input type="text" name="full_name" class="form-control py-2" placeholder="Adı Soyadı">
+                            <input type="text" name="full_name" class="form-control py-2" placeholder="örn. Ahmet Yılmaz">
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold small">Parola</label>
-                            <input type="password" name="password" class="form-control py-2" placeholder="Parola" required minlength="6">
+                            <input type="password" name="password" class="form-control py-2" placeholder="en az 6 karakter" required minlength="6">
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold small">Rol</label>
@@ -100,11 +104,12 @@
                                     <th>Ad Soyad</th>
                                     <th>Rol</th>
                                     <th>Oluşturulma Tarihi</th>
+                                    <th class="text-center">İşlem</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if (users.length === 0) { %>
-                                    <tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Henüz kullanıcı bulunmuyor.</td></tr>
+                                    <tr><td colspan="6" class="text-center py-5 text-muted fw-semibold">Henüz kullanıcı bulunmuyor.</td></tr>
                                 <% } %>
                                 <% users.forEach(u => { %>
                                     <tr class="fw-semibold">
@@ -119,6 +124,25 @@
                                             <% } %>
                                         </td>
                                         <td><small class="text-muted"><%= u.created_at ? new Date(u.created_at).toISOString().split('T')[0] : '-' %></small></td>
+                                        <td class="text-center">
+                                            <div class="d-flex gap-2 justify-content-center">
+                                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold edit-user-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#editUserModal"
+                                                        data-id="<%= u.id %>"
+                                                        data-email="<%= u.email %>"
+                                                        data-username="<%= u.username %>"
+                                                        data-fullname="<%= u.full_name || '' %>"
+                                                        data-role="<%= u.role %>">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                                <form action="/delete-user/<%= u.id %>" method="POST" class="m-0"
+                                                      onsubmit="return confirm('&quot;<%= u.username %>&quot; kullanıcısını silmek istediğine emin misin? Bu işlem geri alınamaz.');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger fw-bold">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
                                     </tr>
                                 <% }) %>
                             </tbody>
@@ -129,6 +153,63 @@
         </div>
     </div>
 
+    <!-- Kullanıcı Düzenleme Modalı -->
+    <div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 15px;">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-pen me-2"></i> Kullanıcıyı Düzenle</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editUserForm" method="POST">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Kullanıcı Adı</label>
+                            <input type="text" name="username" id="edit-user-username" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Email</label>
+                            <input type="email" name="email" id="edit-user-email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Ad Soyad</label>
+                            <input type="text" name="full_name" id="edit-user-fullname" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Rol</label>
+                            <select name="role" id="edit-user-role" class="form-select">
+                                <option value="staff">Personel (normal kullanıcı)</option>
+                                <option value="admin">Yönetici (kullanıcı ekleyebilir)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Yeni Parola <span class="text-muted small fw-normal">(değiştirmek istemiyorsan boş bırak)</span></label>
+                            <input type="password" name="password" class="form-control" placeholder="en az 6 karakter" minlength="6">
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Kapat</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Değişiklikleri Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.edit-user-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const id = btn.getAttribute('data-id');
+                    document.getElementById('editUserForm').action = '/update-user/' + id;
+                    document.getElementById('edit-user-username').value = btn.getAttribute('data-username') || '';
+                    document.getElementById('edit-user-email').value = btn.getAttribute('data-email') || '';
+                    document.getElementById('edit-user-fullname').value = btn.getAttribute('data-fullname') || '';
+                    document.getElementById('edit-user-role').value = btn.getAttribute('data-role') || 'staff';
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -2,11 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const tourController = require('../controllers/tourController');
+const { requireAdmin } = require('../middleware/authMiddleware');
 
 // 1. CRM / Talep Rotaları
 router.get('/tour-demands', tourController.getTourDemands);
 router.post('/add-demand', tourController.addDemand);
 router.post('/update-demand-status/:id', tourController.updateDemandStatus);
+router.post('/update-demand/:id', requireAdmin, tourController.updateDemand); // Sadece yönetici düzenleyebilir
 router.get('/export-demands-excel', tourController.exportDemandsExcel); // Excel Buton Rotaları
 
 // 2. Kokpit / Ana Sayfa Rotaları
@@ -37,7 +39,4 @@ router.post('/api/quick-add/restaurant', tourController.quickAddRestaurant);
 //Excel aktarımı için 
 router.get('/export-tours-excel', tourController.exportToursExcel);
 
-module.exports = router;
-
-// app.js'in bu dosyayı tanıyabilmesi için dışarı aktarılıyor
 module.exports = router;

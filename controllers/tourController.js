@@ -8,11 +8,17 @@ const Whatsapp = require('../utils/whatsapp');
 // =========================================================================
 exports.getTourDemands = async (req, res) => {
     try {
-        const [demands, agencies] = await Promise.all([
+        const selectedYear = req.query.year || new Date().getFullYear();
+
+        const [demands, agencies, totalApprovedPax] = await Promise.all([
             TourModel.getAllDemands(),
-            TourModel.getAgenciesOrderByName()
+            TourModel.getAgenciesOrderByName(),
+            TourModel.getTotalApprovedPax(selectedYear)
         ]);
-        res.render('tour-demands', { demands, agencies, error: req.query.error || null, page_path: '/tour-demands' });
+        res.render('tour-demands', {
+            demands, agencies, totalApprovedPax, selectedYear,
+            error: req.query.error || null, page_path: '/tour-demands'
+        });
     } catch (error) {
         console.error('Talep Takip Sayfası Yüklenirken Hata:', error);
         res.status(500).send('Talep takip sayfası yüklenirken bir hata oluştu.');
@@ -21,12 +27,34 @@ exports.getTourDemands = async (req, res) => {
 
 exports.addDemand = async (req, res) => {
     try {
-        const { demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency } = req.body;
-        await TourModel.insertDemand({ demand_name, start_date, end_date, agency_id, first_contact_date, offer_date, offered_price, currency });
+        const { demand_name, start_date, end_date, pax, agency_id, first_contact_date, offer_date, offered_price, currency } = req.body;
+        await TourModel.insertDemand({ demand_name, start_date, end_date, pax, agency_id, first_contact_date, offer_date, offered_price, currency });
         res.redirect('/tour-demands');
     } catch (error) {
         console.error('Talep kaydedilirken hata:', error);
         res.status(500).send('Talep kaydedilirken bir hata oluştu.');
+    }
+};
+
+// Talebin kendi bilgilerini düzenler (SADECE YÖNETİCİ - route'ta requireAdmin ile korunuyor)
+exports.updateDemand = async (req, res) => {
+    try {
+        const demandId = req.params.id;
+        const { demand_name, start_date, end_date, pax, agency_id, first_contact_date, offer_date, offered_price, currency } = req.body;
+
+        if (!demand_name || demand_name.trim() === '') {
+            return res.redirect('/tour-demands?error=invalid_demand');
+        }
+
+        await TourModel.updateDemand(demandId, {
+            demand_name: demand_name.trim(), start_date, end_date, pax,
+            agency_id, first_contact_date, offer_date, offered_price, currency
+        });
+
+        res.redirect('/tour-demands');
+    } catch (error) {
+        console.error('Talep düzenlenirken hata:', error);
+        res.status(500).send('Talep düzenlenirken bir hata oluştu.');
     }
 };
 
@@ -290,6 +318,7 @@ exports.exportDemandsExcel = async (req, res) => {
         worksheet.columns = [
             { header: 'Talep No', key: 'id', width: 10 },
             { header: 'Tur / Talep Adı', key: 'demand_name', width: 30 },
+            { header: 'Yolcu Sayısı', key: 'pax', width: 14 },
             { header: 'Acente Adı', key: 'agency_name', width: 25 },
             { header: 'Acente Tel', key: 'phone', width: 20 },
             { header: 'Acente E-posta', key: 'email', width: 25 },
@@ -307,6 +336,7 @@ exports.exportDemandsExcel = async (req, res) => {
             worksheet.addRow({
                 id: d.id,
                 demand_name: d.demand_name,
+                pax: d.pax || '-',
                 agency_name: d.agency_name || 'Bilinmiyor',
                 phone: d.phone || '-',
                 email: d.email || '-',
